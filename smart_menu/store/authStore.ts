@@ -5,6 +5,9 @@ export interface User {
     name: string;
     email: string;
     role: 'client' | 'master';
+    address?: string;
+    cep?: string;
+    avatar_url?: string;
 }
 
 interface AuthState {
