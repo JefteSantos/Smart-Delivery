@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, ShoppingCart, User } from 'lucide-react-native';
+import { Home, ShoppingCart, User, ClipboardList } from 'lucide-react-native';
 import { useCartStore } from '../../store/cartStore';
 
 export default function ClientLayout() {
@@ -34,10 +34,41 @@ export default function ClientLayout() {
                 }}
             />
             <Tabs.Screen
+                name="my-orders"
+                options={{
+                    title: 'Pedidos',
+                    tabBarIcon: ({ color }) => <ClipboardList color={color} size={24} />,
+                }}
+            />
+            <Tabs.Screen
                 name="profile"
                 options={{
                     title: 'Perfil',
                     tabBarIcon: ({ color }) => <User color={color} size={24} />,
+                }}
+            />
+            <Tabs.Screen
+                name="my-data"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="settings"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="privacy"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="terms"
+                options={{
+                    href: null,
                 }}
             />
         </Tabs>

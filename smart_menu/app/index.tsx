@@ -14,14 +14,16 @@ export default function Index() {
 
   if (!mounted || !isHydrated) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50">
+      <View className="flex-1 items-center justify-center bg-gray-50 dark:bg-gray-900">
         <ActivityIndicator size="large" color="#EF4444" />
       </View>
     );
   }
 
   if (user) {
-    // Se o usuário tem nível 'master', poderíamos redirecionar para /(master) aqui!
+    if (user.role === 'master') {
+      return <Redirect href="/(master)/home" />;
+    }
     return <Redirect href="/(client)/home" />;
   }
 
