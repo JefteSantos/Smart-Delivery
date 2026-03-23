@@ -343,7 +343,8 @@ export default function MasterMenuScreen() {
                                     <View className="h-16 w-16 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden relative">
                                         <Image
                                             source={p.image_url ? { uri: p.image_url } : require('../../assets/images/placeholder-meal.webp')}
-                                            className="w-full h-full"
+                                            style={{ width: 64, height: 64 }}
+                                            resizeMode="cover"
                                         />
                                         {p.is_offer && (
                                             <View className="absolute bottom-0 w-full bg-red-500 py-0.5 items-center">

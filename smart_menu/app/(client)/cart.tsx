@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { Minus, Plus, Trash2, CheckCircle, MapPin } from 'lucide-react-native';
@@ -6,8 +6,9 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { Truck, Store } from 'lucide-react-native';
-import { getDistance } from 'geolib'; // CORREÇÃO: import estático no topo (era require() dinâmico)
+import { getDistance } from 'geolib';
 import { useAddressFromCep } from '../../lib/useAddressFromCep';
+import { getMasterPushToken, sendPushNotification } from '../../lib/notifications';
 
 export default function CartScreen() {
     const { items, addItem, removeItem, getTotalPrice, clearCart } = useCartStore();
@@ -163,7 +164,17 @@ export default function CartScreen() {
 
             if (itemsError) throw itemsError;
 
-            // 4. Sucesso total!
+            // 4. Sucesso total! Notifica o restaurante
+            const masterToken = await getMasterPushToken();
+            if (masterToken) {
+                const modeLabel = deliveryMode === 'delivery' ? 'Entrega' : 'Retirada';
+                sendPushNotification(
+                    masterToken,
+                    '🛎️ Novo Pedido Recebido!',
+                    `${user.name || 'Cliente'} fez um pedido · R$ ${finalTotal.toFixed(2).replace('.', ',')} · ${modeLabel}`,
+                    { screen: '/(master)/orders' }
+                );
+            }
             setSuccess(true);
             setObservation('');
             setTimeout(() => {
@@ -210,146 +221,154 @@ export default function CartScreen() {
     }
 
     return (
-        <View className="flex-1 bg-gray-50 dark:bg-gray-900 pt-12">
-            <View className="px-5 mb-4 flex-row justify-between items-center">
-                <Text className="text-2xl font-extrabold text-gray-800 dark:text-white">Seu Pedido</Text>
-                <TouchableOpacity onPress={clearCart}>
-                    <Text className="text-red-500 font-bold">Limpar</Text>
-                </TouchableOpacity>
-            </View>
-
-            <FlatList
-                data={items}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: 20 }}
-                renderItem={({ item }) => (
-                    <View className="flex-row items-center bg-white dark:bg-gray-800 p-3 rounded-xl mb-3 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <Image
-                            source={
-                                item.imageUrl
-                                    ? { uri: item.imageUrl }
-                                    : require('../../assets/images/placeholder-meal.webp')
-                            }
-                            className="h-16 w-16 rounded-lg bg-gray-200 dark:bg-gray-700"
-                        />
-                        <View className="flex-1 ml-3">
-                            <Text className="font-bold text-gray-800 dark:text-white" numberOfLines={1}>
-                                {item.name}
-                            </Text>
-                            <Text className="text-red-600 font-medium mt-1">
-                                R$ {item.price.toFixed(2).replace('.', ',')}
-                            </Text>
-                        </View>
-
-                        <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-2 py-1">
-                            <TouchableOpacity
-                                onPress={() => removeItem(item.id)}
-                                className="p-1"
-                            >
-                                {item.quantity === 1 ? (
-                                    <Trash2 size={16} color="#666" />
-                                ) : (
-                                    <Minus size={16} color="#666" />
-                                )}
-                            </TouchableOpacity>
-                            <Text className="mx-3 font-bold">{item.quantity}</Text>
-                            <TouchableOpacity onPress={() => addItem(item)} className="p-1">
-                                <Plus size={16} color="#666" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-            />
-
-            <View className="bg-white dark:bg-gray-800 p-6 border-t border-gray-200 dark:border-gray-700 rounded-t-3xl shadow-lg">
-                <View className="flex-row space-x-2 mb-4">
-                    <TouchableOpacity
-                        className={`flex-1 py-3 items-center rounded-xl flex-row justify-center border ${deliveryMode === 'delivery' ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}
-                        onPress={() => setDeliveryMode('delivery')}
-                    >
-                        <Truck size={16} color={deliveryMode === 'delivery' ? '#3B82F6' : '#9CA3AF'} />
-                        <Text className={`font-bold ml-2 ${deliveryMode === 'delivery' ? 'text-blue-600' : 'text-gray-400 dark:text-gray-400'}`}>Entrega</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        className={`flex-1 py-3 mx-2 items-center rounded-xl flex-row justify-center border ${deliveryMode === 'pickup' ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}
-                        onPress={() => setDeliveryMode('pickup')}
-                    >
-                        <Store size={16} color={deliveryMode === 'pickup' ? '#F97316' : '#9CA3AF'} />
-                        <Text className={`font-bold ml-2 ${deliveryMode === 'pickup' ? 'text-orange-600' : 'text-gray-400 dark:text-gray-400'}`}>Retirar</Text>
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            className="flex-1 bg-gray-50 dark:bg-gray-900"
+        >
+            <ScrollView 
+                className="flex-1 pt-12" 
+                contentContainerStyle={{ flexGrow: 1 }}
+                showsVerticalScrollIndicator={false}
+            >
+                <View className="px-5 mb-4 flex-row justify-between items-center">
+                    <Text className="text-2xl font-extrabold text-gray-800 dark:text-white">Seu Pedido</Text>
+                    <TouchableOpacity onPress={clearCart}>
+                        <Text className="text-red-500 font-bold">Limpar</Text>
                     </TouchableOpacity>
                 </View>
 
-                {deliveryMode === 'delivery' && (
-                    <View className="mb-4">
-                        <View className="bg-gray-50 dark:bg-gray-900 rounded-xl px-4 py-2 border border-blue-200 mb-2">
-                            <Text className="text-blue-600 font-bold mb-1 ml-1 text-xs uppercase tracking-widest flex-row items-center">
-                                <MapPin size={12} color="#3B82F6" /> CEP de Entrega {loadingCep && <ActivityIndicator size="small" color="#3B82F6" className="ml-2" />}
-                            </Text>
-                            <TextInput
-                                placeholder="00000-000"
-                                placeholderTextColor="#9ca3af"
-                                value={clientCep}
-                                keyboardType="numeric"
-                                maxLength={9}
-                                onChangeText={handleCepChange}
-                                className="text-gray-800 dark:text-white pb-2"
+                <View className="px-5 flex-1">
+                    {items.map(item => (
+                        <View key={item.id} className="flex-row items-center bg-white dark:bg-gray-800 p-3 rounded-xl mb-3 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <Image
+                                source={
+                                    item.imageUrl
+                                        ? { uri: item.imageUrl }
+                                        : require('../../assets/images/placeholder-meal.webp')
+                                }
+                                className="rounded-lg bg-gray-200 dark:bg-gray-700"
+                                style={{ width: 64, height: 64 }}
+                                resizeMode="cover"
                             />
+                            <View className="flex-1 ml-3">
+                                <Text className="font-bold text-gray-800 dark:text-white" numberOfLines={1}>
+                                    {item.name}
+                                </Text>
+                                <Text className="text-red-600 font-medium mt-1">
+                                    R$ {item.price.toFixed(2).replace('.', ',')}
+                                </Text>
+                            </View>
+
+                            <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-2 py-1">
+                                <TouchableOpacity
+                                    onPress={() => removeItem(item.id)}
+                                    className="p-1"
+                                >
+                                    {item.quantity === 1 ? (
+                                        <Trash2 size={16} color="#666" />
+                                    ) : (
+                                        <Minus size={16} color="#666" />
+                                    )}
+                                </TouchableOpacity>
+                                <Text className="mx-3 font-bold">{item.quantity}</Text>
+                                <TouchableOpacity onPress={() => addItem(item)} className="p-1">
+                                    <Plus size={16} color="#666" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <View className="bg-gray-50 dark:bg-gray-900 rounded-xl px-4 py-2 border border-blue-200">
-                            <Text className="text-blue-600 font-bold mb-1 ml-1 text-xs uppercase tracking-widest">Endereço (Rua, Número, Bairro)</Text>
-                            <TextInput
-                                placeholder="Ex: Rua das Flores, 123 - Centro"
-                                placeholderTextColor="#9ca3af"
-                                value={deliveryAddress}
-                                onChangeText={setDeliveryAddress}
-                                className="text-gray-800 dark:text-white pb-2"
-                                multiline
-                            />
-                        </View>
+                    ))}
+                </View>
+
+                <View className="bg-white dark:bg-gray-800 p-6 border-t border-gray-200 dark:border-gray-700 rounded-t-3xl shadow-lg mt-4">
+                    <View className="flex-row space-x-2 mb-4">
+                        <TouchableOpacity
+                            className={`flex-1 py-3 items-center rounded-xl flex-row justify-center border ${deliveryMode === 'delivery' ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}
+                            onPress={() => setDeliveryMode('delivery')}
+                        >
+                            <Truck size={16} color={deliveryMode === 'delivery' ? '#3B82F6' : '#9CA3AF'} />
+                            <Text className={`font-bold ml-2 ${deliveryMode === 'delivery' ? 'text-blue-600' : 'text-gray-400 dark:text-gray-400'}`}>Entrega</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            className={`flex-1 py-3 mx-2 items-center rounded-xl flex-row justify-center border ${deliveryMode === 'pickup' ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}
+                            onPress={() => setDeliveryMode('pickup')}
+                        >
+                            <Store size={16} color={deliveryMode === 'pickup' ? '#F97316' : '#9CA3AF'} />
+                            <Text className={`font-bold ml-2 ${deliveryMode === 'pickup' ? 'text-orange-600' : 'text-gray-400 dark:text-gray-400'}`}>Retirar</Text>
+                        </TouchableOpacity>
                     </View>
-                )}
 
-                <View className="mb-4 bg-gray-50 dark:bg-gray-900 rounded-xl px-4 py-2 border border-gray-200 dark:border-gray-700">
-                    <Text className="text-gray-500 dark:text-gray-400 font-bold mb-1 ml-1 text-xs">Observações do pedido</Text>
-                    <TextInput
-                        placeholder="Ex: Sem cebola, troco pra 50..."
-                        placeholderTextColor="#9ca3af"
-                        value={observation}
-                        onChangeText={setObservation}
-                        className="text-gray-800 dark:text-white pb-2"
-                        multiline
-                    />
-                </View>
-
-                <View className="flex-row justify-between mb-2">
-                    <Text className="text-gray-400 dark:text-gray-400 font-medium">Subtotal</Text>
-                    <Text className="text-gray-600 dark:text-white font-medium">R$ {total.toFixed(2).replace('.', ',')}</Text>
-                </View>
-                <View className="flex-row justify-between mb-4 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <Text className="text-gray-400 dark:text-gray-400 font-medium">Taxa de Entrega</Text>
-                    <Text className="text-gray-600 dark:text-white font-medium">R$ {deliveryFee.toFixed(2).replace('.', ',')}</Text>
-                </View>
-
-                <View className="flex-row justify-between mb-6">
-                    <Text className="text-gray-800 dark:text-white font-bold text-lg">Total do Pedido</Text>
-                    <Text className="text-2xl font-extrabold text-red-500">
-                        R$ {finalTotal.toFixed(2).replace('.', ',')}
-                    </Text>
-                </View>
-
-                <TouchableOpacity
-                    className={`py-4 rounded-xl items-center flex-row justify-center shadow-md ${loading ? 'bg-red-400 shadow-red-400/30' : 'bg-red-500 shadow-red-500/30'}`}
-                    disabled={loading}
-                    onPress={handleCheckout}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text className="text-white font-bold text-lg">Confirmar Pedido</Text>
+                    {deliveryMode === 'delivery' && (
+                        <View className="mb-4">
+                            <View className="bg-gray-50 dark:bg-gray-900 rounded-xl px-4 py-2 border border-blue-200 mb-2">
+                                <Text className="text-blue-600 font-bold mb-1 ml-1 text-xs uppercase tracking-widest flex-row items-center">
+                                    <MapPin size={12} color="#3B82F6" /> CEP de Entrega {loadingCep && <ActivityIndicator size="small" color="#3B82F6" className="ml-2" />}
+                                </Text>
+                                <TextInput
+                                    placeholder="00000-000"
+                                    placeholderTextColor="#9ca3af"
+                                    value={clientCep}
+                                    keyboardType="numeric"
+                                    maxLength={9}
+                                    onChangeText={handleCepChange}
+                                    className="text-gray-800 dark:text-white pb-2"
+                                />
+                            </View>
+                            <View className="bg-gray-50 dark:bg-gray-900 rounded-xl px-4 py-2 border border-blue-200">
+                                <Text className="text-blue-600 font-bold mb-1 ml-1 text-xs uppercase tracking-widest">Endereço (Rua, Número, Bairro)</Text>
+                                <TextInput
+                                    placeholder="Ex: Rua das Flores, 123 - Centro"
+                                    placeholderTextColor="#9ca3af"
+                                    value={deliveryAddress}
+                                    onChangeText={setDeliveryAddress}
+                                    className="text-gray-800 dark:text-white pb-2"
+                                    multiline
+                                />
+                            </View>
+                        </View>
                     )}
-                </TouchableOpacity>
-            </View>
-        </View>
+
+                    <View className="mb-4 bg-gray-50 dark:bg-gray-900 rounded-xl px-4 py-2 border border-gray-200 dark:border-gray-700">
+                        <Text className="text-gray-500 dark:text-gray-400 font-bold mb-1 ml-1 text-xs">Observações do pedido</Text>
+                        <TextInput
+                            placeholder="Ex: Sem cebola, troco pra 50..."
+                            placeholderTextColor="#9ca3af"
+                            value={observation}
+                            onChangeText={setObservation}
+                            className="text-gray-800 dark:text-white pb-2"
+                            multiline
+                        />
+                    </View>
+
+                    <View className="flex-row justify-between mb-2">
+                        <Text className="text-gray-400 dark:text-gray-400 font-medium">Subtotal</Text>
+                        <Text className="text-gray-600 dark:text-white font-medium">R$ {total.toFixed(2).replace('.', ',')}</Text>
+                    </View>
+                    <View className="flex-row justify-between mb-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+                        <Text className="text-gray-400 dark:text-gray-400 font-medium">Taxa de Entrega</Text>
+                        <Text className="text-gray-600 dark:text-white font-medium">R$ {deliveryFee.toFixed(2).replace('.', ',')}</Text>
+                    </View>
+
+                    <View className="flex-row justify-between mb-6">
+                        <Text className="text-gray-800 dark:text-white font-bold text-lg">Total do Pedido</Text>
+                        <Text className="text-2xl font-extrabold text-red-500">
+                            R$ {finalTotal.toFixed(2).replace('.', ',')}
+                        </Text>
+                    </View>
+
+                    <TouchableOpacity
+                        className={`py-4 rounded-xl items-center flex-row justify-center shadow-md ${loading ? 'bg-red-400 shadow-red-400/30' : 'bg-red-500 shadow-red-500/30'}`}
+                        disabled={loading}
+                        onPress={handleCheckout}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Text className="text-white font-bold text-lg">Confirmar Pedido</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }

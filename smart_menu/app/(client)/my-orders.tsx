@@ -1,10 +1,11 @@
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, RefreshCw, RefreshCcw } from 'lucide-react-native';
+import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, RefreshCw, RefreshCcw, MessageCircle } from 'lucide-react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { showWebNotification } from '../../lib/notifications';
 
 interface OrderItem {
     id: string;
@@ -27,6 +28,7 @@ interface Order {
     delivery_address?: string | null;
     items?: OrderItem[];
     expanded?: boolean;
+    unread_messages?: number;
 }
 
 export default function MyOrdersScreen() {
@@ -51,8 +53,36 @@ export default function MyOrdersScreen() {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
-                () => {
+                (payload) => {
                     fetchOrders();
+
+                    // Notificação web quando o status do pedido mudar
+                    if (payload.eventType === 'UPDATE' && payload.new?.status !== payload.old?.status) {
+                        const statusMessages: Record<string, { title: string; body: string }> = {
+                            preparing: {
+                                title: '👨‍🍳 Pedido Confirmado!',
+                                body: 'O restaurante aceitou e já está preparando tudo!',
+                            },
+                            delivering: {
+                                title: '🚴 Pedido a Caminho!',
+                                body: 'Seu pedido saiu para entrega. Já já chega!',
+                            },
+                            delivered: {
+                                title: '✅ Pedido Entregue!',
+                                body: 'Esperamos que tenha gostado!',
+                            },
+                            cancelled: {
+                                title: '❌ Pedido Cancelado',
+                                body: payload.new?.admin_message || 'Seu pedido foi cancelado.',
+                            },
+                        };
+                        const notif = statusMessages[payload.new?.status];
+                        if (notif) {
+                            showWebNotification(notif.title, notif.body, {
+                                orderId: payload.new?.id,
+                            });
+                        }
+                    }
                 }
             )
             .subscribe();
@@ -86,18 +116,35 @@ export default function MyOrdersScreen() {
 
                 if (itemsError) throw itemsError;
 
+                // Fetch unread messages para compôr o número no pedido local
+                const { data: unreadData, error: unreadError } = await supabase
+                    .from('messages')
+                    .select('order_id')
+                    .eq('is_read', false)
+                    .eq('sender_role', 'master')
+                    .in('order_id', orderIds);
+                
+                const unreadCounts: Record<string, number> = orderIds.reduce((acc: any, id) => { acc[id] = 0; return acc; }, {});
+                if (!unreadError && unreadData) {
+                    unreadData.forEach(msg => {
+                        unreadCounts[msg.order_id]++;
+                    });
+                }
+
                 const assembledOrders = ordersData.map(order => ({
                     ...order,
                     items: itemsData.filter(i => i.order_id === order.id),
-                    expanded: false
+                    expanded: false,
+                    unread_messages: unreadCounts[order.id] || 0
                 })) as Order[];
 
                 setOrders(assembledOrders);
             } else {
                 setOrders([]);
             }
-        } catch {
-            // Erro silencioso — não expõe detalhes ao usuário final
+        } catch (error: any) {
+            console.error('Fetch Orders Error:', error);
+            Alert.alert("Erro de Sincronização", "Não foi possível carregar os pedidos: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -267,7 +314,14 @@ export default function MyOrdersScreen() {
                             <View key={order.id} className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-4 shadow-sm border border-gray-100 dark:border-gray-800">
                                 <TouchableOpacity onPress={() => toggleExpand(order.id)} className="flex-row justify-between items-center mb-3">
                                     <View>
-                                        <Text className="font-bold text-gray-800 dark:text-white text-base">Pedido #{order.id.slice(0, 6).toUpperCase()}</Text>
+                                        <View className="flex-row items-center">
+                                            <Text className="font-bold text-gray-800 dark:text-white text-base">Pedido #{order.id.slice(0, 6).toUpperCase()}</Text>
+                                            {order.unread_messages && order.unread_messages > 0 ? (
+                                                <View className="bg-red-500 rounded-full py-0.5 px-2 ml-3">
+                                                    <Text className="text-white text-[10px] font-bold">{order.unread_messages} nova(s) msg</Text>
+                                                </View>
+                                            ) : null}
+                                        </View>
                                         <Text className="text-gray-400 dark:text-gray-400 text-xs mt-1">{dataFormatada} às {horaFormatada}</Text>
                                     </View>
                                     <View className="items-center justify-center p-2">
@@ -335,6 +389,17 @@ export default function MyOrdersScreen() {
                                             >
                                                 <CheckCircle size={16} color="#10B981" />
                                                 <Text className="text-emerald-600 font-bold ml-2">Já Recebi meu Pedido</Text>
+                                            </TouchableOpacity>
+                                        )}
+
+                                        {/* Botão de Chat com o Restaurante */}
+                                        {order.status !== 'cancelled' && (
+                                            <TouchableOpacity
+                                                onPress={() => router.push(`/chat/${order.id}` as any)}
+                                                className="bg-violet-50 p-3 rounded-xl flex-row justify-center items-center border border-violet-100 mb-3"
+                                            >
+                                                <MessageCircle size={16} color="#8B5CF6" />
+                                                <Text className="text-violet-600 font-bold ml-2">Falar com o Restaurante</Text>
                                             </TouchableOpacity>
                                         )}
 

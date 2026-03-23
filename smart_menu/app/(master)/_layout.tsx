@@ -1,7 +1,8 @@
 import { Tabs, useRouter } from 'expo-router';
 import { Home, Utensils, Settings, ClipboardList } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 
 export default function MasterLayout() {
     const user = useAuthStore((state) => state.user);
@@ -23,6 +24,57 @@ export default function MasterLayout() {
     if (!user || user.role !== 'master') {
         return null;
     }
+
+    const [pendingOrders, setPendingOrders] = useState(0);
+
+    useEffect(() => {
+        const checkBadges = async () => {
+            const { count: ordersCount } = await supabase
+                .from('orders')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'pending');
+            
+            // Busca mensagens que o cliente mandou e o restaurante não viu
+            const { count: unreadCount, error: unreadErr } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('is_read', false)
+                .eq('sender_role', 'client');
+
+            const totalUnread = unreadErr ? 0 : (unreadCount || 0);
+
+            setPendingOrders((ordersCount || 0) + totalUnread);
+        };
+
+        checkBadges();
+
+        const channelOrders = supabase
+            .channel('master_layout_orders')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'orders' },
+                () => {
+                    checkBadges();
+                }
+            )
+            .subscribe();
+
+        const channelMessages = supabase
+            .channel('layout_unread_messages_master')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'messages' },
+                () => {
+                    checkBadges();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channelOrders);
+            supabase.removeChannel(channelMessages);
+        };
+    }, []);
 
     return (
         <Tabs
@@ -54,6 +106,8 @@ export default function MasterLayout() {
                 options={{
                     title: 'Pedidos',
                     tabBarIcon: ({ color }) => <ClipboardList color={color} size={24} />,
+                    tabBarBadge: pendingOrders > 0 ? pendingOrders : undefined,
+                    tabBarBadgeStyle: { backgroundColor: '#EF4444' },
                 }}
             />
             <Tabs.Screen

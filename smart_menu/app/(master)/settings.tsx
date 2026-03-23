@@ -76,14 +76,12 @@ export default function MasterSettingsScreen() {
     };
 
     const handleLogout = async () => {
-        // Alertas com múltiplos botões e callbacks costumam falhar silenciosamente no ambiente Web/Expo
         const { error } = await supabase.auth.signOut();
         if (error) {
-            Alert.alert("Erro", error.message);
-        } else {
-            logout();
-            router.replace('/(auth)/login');
+            console.error("Erro no logout da API:", error);
         }
+        logout();
+        router.replace('/(auth)/login');
     };
 
     return (

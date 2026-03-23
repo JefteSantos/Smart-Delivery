@@ -3,7 +3,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { CheckCircle, Clock, Package, Truck, XCircle, Search, MessageSquare, ChevronDown, ChevronUp, RefreshCcw } from 'lucide-react-native';
+import { CheckCircle, Clock, Package, Truck, XCircle, Search, MessageSquare, ChevronDown, ChevronUp, RefreshCcw, MessageCircle } from 'lucide-react-native';
+import { getTokenForUser, sendPushNotification, showWebNotification } from '../../lib/notifications';
 
 interface OrderItem {
     id: string;
@@ -25,6 +26,7 @@ interface Order {
     delivery_address?: string | null;
     items?: OrderItem[];
     expanded?: boolean;
+    unread_messages?: number;
 }
 
 export default function MasterOrdersScreen() {
@@ -54,8 +56,18 @@ export default function MasterOrdersScreen() {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'orders' },
                 (payload) => {
-                    // Novo evento em tempo real — recarrega os pedidos
                     fetchOrders();
+
+                    // Notificação web quando um novo pedido é inserido
+                    // (complementa o push mobile que já é enviado pelo cart.tsx)
+                    if (payload.eventType === 'INSERT') {
+                        const order = payload.new as any;
+                        showWebNotification(
+                            '🛎️ Novo Pedido Recebido!',
+                            `${order.client_name || 'Cliente'} · R$ ${Number(order.total_price).toFixed(2).replace('.', ',')}`,
+                            { orderId: order.id, requireInteraction: true }
+                        );
+                    }
                 }
             )
             .subscribe();
@@ -88,10 +100,26 @@ export default function MasterOrdersScreen() {
 
                 if (itemsError) throw itemsError;
 
+                // Fetch unread messages
+                const { data: unreadData, error: unreadError } = await supabase
+                    .from('messages')
+                    .select('order_id')
+                    .eq('is_read', false)
+                    .eq('sender_role', 'client')
+                    .in('order_id', orderIds);
+                
+                const unreadCounts: Record<string, number> = orderIds.reduce((acc: any, id) => { acc[id] = 0; return acc; }, {});
+                if (!unreadError && unreadData) {
+                    unreadData.forEach(msg => {
+                        unreadCounts[msg.order_id]++;
+                    });
+                }
+
                 const assembledOrders = ordersData.map(order => ({
                     ...order,
                     items: itemsData.filter(i => i.order_id === order.id),
-                    expanded: order.status === 'pending' // Only auto-expand new ones
+                    expanded: order.status === 'pending', // Only auto-expand new ones
+                    unread_messages: unreadCounts[order.id] || 0
                 })) as Order[];
 
                 setOrders(assembledOrders);
@@ -127,12 +155,45 @@ export default function MasterOrdersScreen() {
                 updatePayload.admin_message = message;
             }
 
-            const { error } = await supabase
+            const { data: updatedOrder, error } = await supabase
                 .from('orders')
                 .update(updatePayload)
-                .eq('id', id);
+                .eq('id', id)
+                .select('user_id, client_name')
+                .single();
 
             if (error) throw error;
+
+            // Notifica o cliente sobre a mudança de status
+            if (updatedOrder?.user_id) {
+                const clientToken = await getTokenForUser(updatedOrder.user_id);
+                if (clientToken) {
+                    const statusMessages: Record<string, { title: string; body: string }> = {
+                        preparing: {
+                            title: '👨‍🍳 Pedido Confirmado!',
+                            body: 'O restaurante aceitou seu pedido e já está preparando tudo!',
+                        },
+                        delivering: {
+                            title: '🚴 Pedido a Caminho!',
+                            body: 'Seu pedido saiu para entrega. Já já chega!',
+                        },
+                        delivered: {
+                            title: '✅ Pedido Entregue!',
+                            body: 'Esperamos que tenha gostado! Avalie seu pedido.',
+                        },
+                        cancelled: {
+                            title: '❌ Pedido Cancelado',
+                            body: message || 'Infelizmente seu pedido foi cancelado. Entre em contato.',
+                        },
+                    };
+                    const notif = statusMessages[newStatus];
+                    if (notif) {
+                        sendPushNotification(clientToken, notif.title, notif.body, {
+                            screen: '/(client)/my-orders',
+                        });
+                    }
+                }
+            }
 
             setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus as any, expanded: newStatus === 'delivered' || newStatus === 'cancelled' ? false : o.expanded } : o));
             setModalVisible(false);
@@ -190,7 +251,14 @@ export default function MasterOrdersScreen() {
                                 {/* Cabecalho do Pedido */}
                                 <TouchableOpacity onPress={() => toggleExpand(order.id)} className="flex-row justify-between items-center mb-3">
                                     <View>
-                                        <Text className="font-exrabold text-gray-900 dark:text-white text-lg">#{order.id.slice(0, 5).toUpperCase()} - {order.client_name}</Text>
+                                        <View className="flex-row items-center">
+                                            <Text className="font-exrabold text-gray-900 dark:text-white text-lg">#{order.id.slice(0, 5).toUpperCase()} - {order.client_name}</Text>
+                                            {order.unread_messages && order.unread_messages > 0 ? (
+                                                <View className="bg-red-500 rounded-full py-0.5 px-2 ml-3">
+                                                    <Text className="text-white text-[10px] font-bold">{order.unread_messages} nova(s) msg</Text>
+                                                </View>
+                                            ) : null}
+                                        </View>
                                         <Text className="text-gray-400 dark:text-gray-400 text-xs mt-1">{new Date(order.created_at).toLocaleTimeString('pt-BR')} • {order.items_count} itens</Text>
                                     </View>
                                     <View className="items-end">
@@ -266,6 +334,17 @@ export default function MasterOrdersScreen() {
                                                     </TouchableOpacity>
                                                 )}
                                             </View>
+                                        )}
+
+                                        {/* Botão de Chat com o Cliente (em todos os pedidos que não estão cancelados) */}
+                                        {order.status !== 'cancelled' && (
+                                            <TouchableOpacity
+                                                onPress={() => router.push(`/chat/${order.id}` as any)}
+                                                className="mt-3 bg-violet-50 border border-violet-200 p-3 rounded-xl flex-row justify-center items-center"
+                                            >
+                                                <MessageCircle size={16} color="#8B5CF6" />
+                                                <Text className="text-violet-700 font-bold ml-2">Chat com o Cliente</Text>
+                                            </TouchableOpacity>
                                         )}
                                     </View>
                                 )}
