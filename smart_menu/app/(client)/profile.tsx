@@ -19,11 +19,13 @@ export default function ProfileScreen() {
         setLoading(false);
 
         if (error) {
-            Alert.alert("Erro ao sair", error.message);
-        } else {
-            logout(); // Segurança caso o listener não bata rápido, a gente já limpa a Store
-            router.replace('/(auth)/login');
+            console.error("Erro no logout da API:", error);
+            // Mostrar aviso, mas continuar o fluxo de desconexão local
         }
+        
+        // Força a limpeza da store local e redireciona (ignora falhas de rede/CORS na API)
+        logout(); 
+        router.replace('/(auth)/login');
     };
 
     const pickAvatar = async () => {

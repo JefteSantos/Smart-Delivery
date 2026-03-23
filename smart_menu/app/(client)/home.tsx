@@ -99,7 +99,9 @@ export default function Catalog() {
                             ? { uri: (item as any).imageUrl }
                             : require('../../assets/images/placeholder-meal.webp')
                     }
-                    className="h-24 w-24 rounded-lg bg-gray-200 dark:bg-gray-700"
+                    className="rounded-lg bg-gray-200 dark:bg-gray-700"
+                    style={{ width: 80, height: 80 }}
+                    resizeMode="cover"
                 />
                 <View className="ml-3 flex-1 justify-between">
                     <View>

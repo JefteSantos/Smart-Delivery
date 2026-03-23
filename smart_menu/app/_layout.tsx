@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { mapSessionToUser } from '@/lib/utils';
 import { Alert, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { registerForPushNotificationsAsync, requestWebNotificationPermission } from '@/lib/notifications';
 
 // "Monkey Patch" no Alert para funcionar lindamente na Web/Expo Browser
 const originalAlert = Alert.alert;
@@ -57,8 +59,15 @@ export default function RootLayout() {
     // Tenta pegar a sessão na inicialização do app
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        // SEGURANÇA: role lido somente de user_metadata via mapSessionToUser
-        loginStore(mapSessionToUser(session));
+        const userObj = mapSessionToUser(session);
+        loginStore(userObj);
+        // Mobile: registra Expo Push Token
+        // Web: solicita permissão de notificação do browser
+        if (Platform.OS === 'web') {
+          requestWebNotificationPermission();
+        } else {
+          registerForPushNotificationsAsync(userObj.id, userObj.role);
+        }
       } else {
         logoutStore();
       }
@@ -68,14 +77,31 @@ export default function RootLayout() {
     // Escuta mudanças de sessão em tempo real (ex: deslogou, ou cadastrou)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        loginStore(mapSessionToUser(session));
+        const userObj = mapSessionToUser(session);
+        loginStore(userObj);
+        // Registra ou atualiza o token sempre que a sessão mudar
+        registerForPushNotificationsAsync(userObj.id, userObj.role);
       } else {
         logoutStore();
       }
     });
 
+    // Abre a tela correta quando o usuário toca na notificação (mobile only)
+    let notifSub: { remove: () => void } | null = null;
+    if (Platform.OS !== 'web') {
+      notifSub = Notifications.addNotificationResponseReceivedListener(response => {
+        const data = response.notification.request.content.data;
+        if (data?.orderId) {
+          router.push(`/chat/${data.orderId}` as any);
+        } else if (data?.screen) {
+          router.push(data.screen as any);
+        }
+      });
+    }
+
     return () => {
       subscription.unsubscribe();
+      notifSub?.remove();
     };
   }, []);
 
