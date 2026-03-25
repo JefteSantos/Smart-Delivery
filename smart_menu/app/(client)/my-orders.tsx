@@ -143,8 +143,8 @@ export default function MyOrdersScreen() {
                 setOrders([]);
             }
         } catch (error: any) {
-            console.error('Fetch Orders Error:', error);
-            Alert.alert("Erro de Sincronização", "Não foi possível carregar os pedidos: " + error.message);
+            console.error('Fetch Orders Error FULL DETAIL:', JSON.stringify(error, null, 2));
+            Alert.alert("Erro de Sincronização", `Detalhes: ${error?.message} | ${error?.details} | ${error?.hint}`);
         } finally {
             setLoading(false);
         }

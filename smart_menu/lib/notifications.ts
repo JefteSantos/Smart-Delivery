@@ -80,6 +80,13 @@ export async function registerForPushNotificationsAsync(
         console.info('[Notifications] Push não disponível em simuladores.');
         return null;
     }
+    
+    // Expo Go a partir do SDK 53 removeu o suporte a Push Push Notifications.
+    // Ignorar tentativas de registro se estiver rodando dentro do Expo Go.
+    if (Constants.appOwnership === 'expo') {
+        console.warn('[Notifications] Push Notifications não são suportadas no Expo Go. Instale o APK/Build nativo.');
+        return null;
+    }
 
     // Pede permissão
     const { status: existingStatus } = await Notifications.getPermissionsAsync();

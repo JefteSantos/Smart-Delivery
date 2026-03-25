@@ -31,7 +31,26 @@ export default function ClientSettingsScreen() {
     const togglePush = async (value: boolean) => {
         setPushNotifications(value);
         await supabase.auth.updateUser({ data: { push_notifications: value } });
+
+        // Efeito real: remove ou re-registra o token de push
+        if (!value) {
+            // Desabilitar: apaga o token para que o restaurante não possa mais notificar
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.id) {
+                await supabase.from('push_tokens').delete().eq('user_id', user.id);
+            }
+        } else {
+            // Reabilitar: re-registra o token no device atual
+            import('../../lib/notifications').then(({ registerForPushNotificationsAsync }) => {
+                supabase.auth.getUser().then(({ data: { user } }) => {
+                    if (user?.id) {
+                        registerForPushNotificationsAsync(user.id, user.user_metadata?.role || 'client');
+                    }
+                });
+            });
+        }
     };
+
 
     const togglePromo = async (value: boolean) => {
         setPromoEmails(value);

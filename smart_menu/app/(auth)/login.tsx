@@ -23,11 +23,17 @@ export default function LoginScreen() {
             return;
         }
 
+        const trimmedEmail = email.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+            setErrorMessage("O formato do e-mail é inválido (exemplo@email.com).");
+            return;
+        }
+
         setLoading(true);
 
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
-                email,
+                email: trimmedEmail,
                 password,
             });
 
@@ -59,9 +65,9 @@ export default function LoginScreen() {
     };
 
     const handleForgotPassword = async () => {
-        const trimmedEmail = email.trim();
-        if (!trimmedEmail) {
-            setErrorMessage("Digite seu e-mail no campo acima para recuperar a senha.");
+        const trimmedEmail = email.trim().toLowerCase();
+        if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+            setErrorMessage("Digite um e-mail válido no campo acima para recuperar a senha.");
             return;
         }
 
@@ -104,7 +110,7 @@ export default function LoginScreen() {
                     <View>
                         <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">E-mail</Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="Digite seu e-mail"
                             placeholderTextColor="#9ca3af"
                             keyboardType="email-address"
@@ -117,7 +123,7 @@ export default function LoginScreen() {
                     <View className="mt-4">
                         <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">Senha</Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="Sua senha secreta"
                             placeholderTextColor="#9ca3af"
                             secureTextEntry

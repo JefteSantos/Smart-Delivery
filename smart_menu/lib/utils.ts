@@ -26,3 +26,10 @@ export function mapSessionToUser(session: Session): User {
     avatar_url: meta.avatar_url || '',
   };
 }
+
+/**
+ * Valida o formato de um e-mail de forma rigorosa para evitar envios nulos ou sem final (.com)
+ */
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}

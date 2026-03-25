@@ -20,19 +20,17 @@ export default function MasterLayout() {
         }
     }, [user]);
 
-    // Enquanto valida, não renderiza as tabs para evitar flash de conteúdo
-    if (!user || user.role !== 'master') {
-        return null;
-    }
-
     const [pendingOrders, setPendingOrders] = useState(0);
 
     useEffect(() => {
+        if (!user || user.role !== 'master') return;
+
         const checkBadges = async () => {
             const { count: ordersCount } = await supabase
                 .from('orders')
                 .select('*', { count: 'exact', head: true })
                 .eq('status', 'pending');
+
             
             // Busca mensagens que o cliente mandou e o restaurante não viu
             const { count: unreadCount, error: unreadErr } = await supabase
@@ -75,6 +73,10 @@ export default function MasterLayout() {
             supabase.removeChannel(channelMessages);
         };
     }, []);
+
+    if (!user || user.role !== 'master') {
+        return null;
+    }
 
     return (
         <Tabs

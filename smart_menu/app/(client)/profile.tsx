@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
-import { User, Settings, Bell, ChevronRight, LogOut, Camera } from 'lucide-react-native';
+import { User, Settings, Bell, ChevronRight, LogOut, Camera, ClipboardList } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -95,7 +95,7 @@ export default function ProfileScreen() {
 
     const options = [
         { id: 1, title: 'Meus Dados', icon: User, route: '/(client)/my-data' },
-        { id: 2, title: 'Meus Pedidos', icon: Bell, route: '/(client)/my-orders' },
+        { id: 2, title: 'Meus Pedidos', icon: ClipboardList, route: '/(client)/my-orders' },
         { id: 3, title: 'Configurações', icon: Settings, route: '/(client)/settings' },
     ];
 

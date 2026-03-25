@@ -135,7 +135,7 @@ export default function CartScreen() {
                     total_price: finalTotal,
                     items_count: items.reduce((acc, item) => acc + item.quantity, 0),
                     delivery_fee: deliveryFee,
-                    status: 'pending',
+                    status: settings?.auto_acceptance ? 'preparing' : 'pending',
                     observation: observation.trim() || null,
                     delivery_mode: deliveryMode,
                     delivery_address: deliveryMode === 'delivery' ? deliveryAddress.trim() : null

@@ -1,4 +1,4 @@
-import { ScrollView, View, Image, Text as RNText, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Image, Text as RNText, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useCartStore, Product } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { Plus } from 'lucide-react-native';
@@ -76,8 +76,9 @@ export default function Catalog() {
                 setProducts(formattedProducts);
             }
 
-        } catch (error) {
-            console.error('Erro ao buscar cardápio:', error);
+        } catch (error: any) {
+            console.error('Erro ao buscar cardápio FULL DETAIL:', JSON.stringify(error, null, 2));
+            Alert.alert("Erro de API", error?.message + " " + error?.details + " " + error?.hint);
         } finally {
             setLoading(false);
         }

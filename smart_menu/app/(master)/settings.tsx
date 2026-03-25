@@ -1,4 +1,4 @@
-import { View, Text, Switch, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, Switch, TouchableOpacity, ScrollView, TextInput, Alert, Modal } from 'react-native';
 import { Settings, Lock, Store, Clock, Bell, CheckCircle2, LogOut } from 'lucide-react-native';
 import { useState, useCallback } from 'react';
 import { useAuthStore } from '../../store/authStore';
@@ -15,6 +15,8 @@ export default function MasterSettingsScreen() {
     const [storeAddress, setStoreAddress] = useState('');
     const [maxDeliveryDistance, setMaxDeliveryDistance] = useState('10');
     const [loading, setLoading] = useState(false);
+    const [isPasswordModalVisible, setPasswordModalVisible] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
 
     const { loadingCep, fetchAddressFromCep, formatCep } = useAddressFromCep();
 
@@ -82,6 +84,23 @@ export default function MasterSettingsScreen() {
         }
         logout();
         router.replace('/(auth)/login');
+    };
+
+    const handleChangePassword = async () => {
+        if (newPassword.length < 6) {
+            Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+            return;
+        }
+        setLoading(true);
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        setLoading(false);
+        if (error) {
+            Alert.alert("Erro ao alterar", error.message);
+        } else {
+            Alert.alert("Sucesso", "Sua senha mestre foi alterada com sucesso!");
+            setPasswordModalVisible(false);
+            setNewPassword('');
+        }
     };
 
     return (
@@ -174,8 +193,11 @@ export default function MasterSettingsScreen() {
                 <Text className="font-bold text-white text-lg">Salvar Configurações</Text>
             </TouchableOpacity>
 
-            {/* CONTA (Fake link) */}
-            <TouchableOpacity className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5 mb-8 flex-row items-center justify-between">
+            {/* CONTA */}
+            <TouchableOpacity 
+                onPress={() => setPasswordModalVisible(true)}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5 mb-8 flex-row items-center justify-between"
+            >
                 <View className="flex-row items-center">
                     <View className="bg-gray-50 dark:bg-gray-900 p-2 rounded-full mr-3 border border-gray-100 dark:border-gray-800">
                         <Lock size={20} color="#4B5563" />
@@ -198,6 +220,47 @@ export default function MasterSettingsScreen() {
             </TouchableOpacity>
 
             <View className="h-10" />
+
+            {/* Modal Alterar Senha */}
+            <Modal
+                visible={isPasswordModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setPasswordModalVisible(false)}
+            >
+                <View className="flex-1 bg-black/50 justify-center items-center px-5">
+                    <View className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-lg border border-gray-100 dark:border-gray-700">
+                        <Text className="text-xl font-bold text-gray-900 dark:text-white mb-2">Alterar Senha</Text>
+                        <Text className="text-gray-500 dark:text-gray-400 text-sm mb-4">Insira sua nova senha mestre (mínimo de 6 caracteres).</Text>
+                        
+                        <TextInput
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-800 dark:text-white font-medium mb-4"
+                            placeholder="Nova senha"
+                            placeholderTextColor="#9ca3af"
+                            secureTextEntry
+                            value={newPassword}
+                            onChangeText={setNewPassword}
+                        />
+
+                        <View className="flex-row justify-end mt-2">
+                            <TouchableOpacity 
+                                onPress={() => { setPasswordModalVisible(false); setNewPassword(''); }} 
+                                disabled={loading}
+                                className="px-4 py-3 mr-2"
+                            >
+                                <Text className="text-gray-500 dark:text-gray-400 font-bold">Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                onPress={handleChangePassword} 
+                                disabled={loading}
+                                className={`rounded-xl px-5 py-3 ${loading ? 'bg-red-400' : 'bg-red-500'}`}
+                            >
+                                <Text className="text-white font-bold">{loading ? "Salvando..." : "Salvar Senha"}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     );
 }

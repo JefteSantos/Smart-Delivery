@@ -38,6 +38,17 @@ export default function RegisterScreen() {
             return;
         }
 
+        if (password.length < 6) {
+            setErrorMessage("A senha deve ter pelo menos 6 caracteres.");
+            return;
+        }
+
+        const trimmedEmail = email.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+            setErrorMessage("E-mail com formato inválido. Use algo como: seu@email.com");
+            return;
+        }
+
         if (!acceptedTerms) {
             setErrorMessage("Você precisa aceitar os Termos e a Política de Privacidade para criar uma conta.");
             return;
@@ -47,7 +58,7 @@ export default function RegisterScreen() {
 
         try {
             const { error } = await supabase.auth.signUp({
-                email,
+                email: trimmedEmail,
                 password,
                 options: {
                     data: {
@@ -104,7 +115,7 @@ export default function RegisterScreen() {
                     <View>
                         <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">Como devemos te chamar?</Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="Seu nome"
                             placeholderTextColor="#9ca3af"
                             autoCapitalize="words"
@@ -116,7 +127,7 @@ export default function RegisterScreen() {
                     <View className="mt-4">
                         <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">E-mail</Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="Digite seu e-mail"
                             placeholderTextColor="#9ca3af"
                             keyboardType="email-address"
@@ -131,7 +142,7 @@ export default function RegisterScreen() {
                             CEP {loadingCep && <ActivityIndicator size="small" color="#EF4444" className="ml-2" />}
                         </Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="00000-000"
                             placeholderTextColor="#9ca3af"
                             keyboardType="numeric"
@@ -144,7 +155,7 @@ export default function RegisterScreen() {
                     <View className="mt-4">
                         <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">Endereço de Entrega (Rua, Número, Bairro)</Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="Ex: Rua das Flores, 123"
                             placeholderTextColor="#9ca3af"
                             value={address}
@@ -155,7 +166,7 @@ export default function RegisterScreen() {
                     <View className="mt-4">
                         <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">Senha</Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="Sua senha secreta (min. 6 dígitos)"
                             placeholderTextColor="#9ca3af"
                             secureTextEntry
@@ -167,7 +178,7 @@ export default function RegisterScreen() {
                     <View className="mt-4">
                         <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">Confirmar Senha</Text>
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white transition-colors"
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
                             placeholder="Repita sua senha"
                             placeholderTextColor="#9ca3af"
                             secureTextEntry
