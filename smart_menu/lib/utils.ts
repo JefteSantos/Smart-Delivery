@@ -1,7 +1,7 @@
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { Session } from '@supabase/supabase-js';
 import { User } from '@/store/authStore';
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -24,6 +24,7 @@ export function mapSessionToUser(session: Session): User {
     address: meta.address || '',
     cep: meta.cep || '',
     avatar_url: meta.avatar_url || '',
+    phone: meta.phone || '',
   };
 }
 

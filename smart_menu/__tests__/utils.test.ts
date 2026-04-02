@@ -1,4 +1,4 @@
-import { mapSessionToUser, isValidEmail } from './utils';
+import { mapSessionToUser, isValidEmail } from '../lib/utils';
 import { Session } from '@supabase/supabase-js';
 
 describe('Utilitários (lib/utils.ts)', () => {

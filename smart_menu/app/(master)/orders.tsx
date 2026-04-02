@@ -34,6 +34,7 @@ export default function MasterOrdersScreen() {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'ativos' | 'concluidos'>('ativos');
 
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -235,60 +236,99 @@ export default function MasterOrdersScreen() {
                 </TouchableOpacity>
             </View>
 
+            {/* Abas */}
+            <View className="px-5 mb-4 flex-row">
+                <TouchableOpacity 
+                    onPress={() => setActiveTab('ativos')}
+                    className={`flex-1 py-3 items-center border-b-2 ${activeTab === 'ativos' ? 'border-red-500' : 'border-transparent'}`}
+                >
+                    <Text className={`font-bold ${activeTab === 'ativos' ? 'text-red-500' : 'text-gray-400'}`}>Em Andamento</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    onPress={() => setActiveTab('concluidos')}
+                    className={`flex-1 py-3 items-center border-b-2 ${activeTab === 'concluidos' ? 'border-red-500' : 'border-transparent'}`}
+                >
+                    <Text className={`font-bold ${activeTab === 'concluidos' ? 'text-red-500' : 'text-gray-400'}`}>Histórico</Text>
+                </TouchableOpacity>
+            </View>
+
             <ScrollView className="px-5 flex-1 pb-10" showsVerticalScrollIndicator={false}>
-                {orders.length === 0 ? (
+                {orders.filter(o => activeTab === 'ativos' ? !['delivered', 'cancelled'].includes(o.status) : ['delivered', 'cancelled'].includes(o.status)).length === 0 ? (
                     <View className="items-center justify-center mt-20">
                         <Package size={64} color="#D1D5DB" />
                         <Text className="text-gray-500 dark:text-gray-400 font-bold mt-4">Ainda não há nenhum pedido.</Text>
                     </View>
                 ) : (
-                    orders.map(order => {
+                    orders.filter(o => activeTab === 'ativos' ? !['delivered', 'cancelled'].includes(o.status) : ['delivered', 'cancelled'].includes(o.status)).map(order => {
                         const badge = getStatusBadge(order.status);
                         const isFinished = order.status === 'delivered' || order.status === 'cancelled';
 
                         return (
-                            <View key={order.id} className={`bg-white dark:bg-gray-800 rounded-2xl p-4 mb-4 shadow-sm border border-gray-200 dark:border-gray-700 ${isFinished ? 'opacity-70' : ''}`}>
+                            <View key={order.id} className={`bg-white dark:bg-gray-800 rounded-3xl p-5 mb-4 shadow-md border border-gray-100 dark:border-gray-700 ${isFinished ? 'opacity-60' : ''}`}>
                                 {/* Cabecalho do Pedido */}
-                                <TouchableOpacity onPress={() => toggleExpand(order.id)} className="flex-row justify-between items-center mb-3">
-                                    <View>
-                                        <View className="flex-row items-center">
-                                            <Text className="font-exrabold text-gray-900 dark:text-white text-lg">#{order.id.slice(0, 5).toUpperCase()} - {order.client_name}</Text>
+                                <TouchableOpacity onPress={() => toggleExpand(order.id)} className="flex-row justify-between">
+                                    <View className="flex-1 mr-2">
+                                        <View className="flex-row items-center mb-1">
+                                            <Text className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mr-2">#{order.id.slice(0, 6).toUpperCase()}</Text>
                                             {order.unread_messages && order.unread_messages > 0 ? (
-                                                <View className="bg-red-500 rounded-full py-0.5 px-2 ml-3">
-                                                    <Text className="text-white text-[10px] font-bold">{order.unread_messages} nova(s) msg</Text>
-                                                </View>
+                                                <View className="bg-red-500 rounded-full h-2 w-2 mr-2" />
                                             ) : null}
                                         </View>
-                                        <Text className="text-gray-400 dark:text-gray-400 text-xs mt-1">{new Date(order.created_at).toLocaleTimeString('pt-BR')} • {order.items_count} itens</Text>
-                                    </View>
-                                    <View className="items-end">
-                                        <View className={`px-2 py-1 rounded border mb-2 ${badge.color}`}>
-                                            <Text className="text-xs font-bold">{badge.text}</Text>
+                                        
+                                        <Text className="font-extrabold text-gray-900 dark:text-white text-lg leading-tight mb-2" numberOfLines={1}>
+                                            {order.client_name}
+                                        </Text>
+
+                                        <View className="flex-row items-center">
+                                            <Clock size={12} color="#9CA3AF" />
+                                            <Text className="text-gray-400 dark:text-gray-500 text-xs ml-1 mr-3">{new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</Text>
+                                            <Package size={12} color="#9CA3AF" />
+                                            <Text className="text-gray-400 dark:text-gray-500 text-xs ml-1">{order.items_count} {order.items_count === 1 ? 'item' : 'itens'}</Text>
                                         </View>
-                                        {order.expanded ? <ChevronUp size={20} color="#9CA3AF" /> : <ChevronDown size={20} color="#9CA3AF" />}
+                                    </View>
+
+                                    <View className="items-end justify-between">
+                                        <View className={`px-3 py-1.5 rounded-full border border-transparent shadow-sm ${badge.color}`}>
+                                            <Text className="text-[10px] font-black uppercase tracking-tighter">{badge.text}</Text>
+                                        </View>
+                                        
+                                        <View className="mt-4">
+                                            {order.unread_messages && order.unread_messages > 0 ? (
+                                                <TouchableOpacity 
+                                                    onPress={() => router.push(`/chat/${order.id}` as any)}
+                                                    className="bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg flex-row items-center mb-2"
+                                                >
+                                                    <MessageCircle size={12} color="#EF4444" />
+                                                    <Text className="text-red-500 text-[10px] font-bold ml-1">{order.unread_messages} msg</Text>
+                                                </TouchableOpacity>
+                                            ) : null}
+                                            <View className="items-end">
+                                                {order.expanded ? <ChevronUp size={20} color="#D1D5DB" /> : <ChevronDown size={20} color="#D1D5DB" />}
+                                            </View>
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
 
                                 {/* Expansao de Detalhes */}
                                 {order.expanded && (
-                                    <View className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                                    <View className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
                                         {/* Endereço / Retirada */}
-                                        <View className="bg-blue-50 p-3 rounded-xl border border-blue-200 mb-3">
-                                            <Text className="text-blue-800 font-bold text-xs mb-1">
-                                                {order.delivery_mode === 'pickup' ? 'MODO: RETIRADA NO LOCAL' : 'ENDEREÇO DE ENTREGA:'}
+                                        <View className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100 dark:border-blue-900/30 mb-3">
+                                            <Text className="text-blue-800 dark:text-blue-400 font-bold text-xs mb-1">
+                                                {order.delivery_mode === 'pickup' ? 'MODO: RETIRADA' : 'ENDEREÇO:'}
                                             </Text>
                                             {order.delivery_mode !== 'pickup' && (
-                                                <Text className="text-blue-700 font-medium">
-                                                    {order.delivery_address || 'Endereço não informado'}
+                                                <Text className="text-blue-700 dark:text-blue-300 font-medium text-sm">
+                                                    {order.delivery_address || 'Não informado'}
                                                 </Text>
                                             )}
                                         </View>
 
                                         {/* Observações */}
                                         {order.observation && (
-                                            <View className="bg-yellow-50 p-3 rounded-xl border border-yellow-200 mb-3">
-                                                <Text className="text-yellow-800 font-bold text-xs mb-1">OBSERVAÇÕES DO CLIENTE:</Text>
-                                                <Text className="text-yellow-700 italic">"{order.observation}"</Text>
+                                            <View className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-xl border border-amber-100 dark:border-amber-900/30 mb-3">
+                                                <Text className="text-amber-800 dark:text-amber-400 font-bold text-xs mb-1">OBSERVAÇÕES:</Text>
+                                                <Text className="text-amber-700 dark:text-amber-300 italic text-sm">"{order.observation}"</Text>
                                             </View>
                                         )}
 
@@ -301,49 +341,50 @@ export default function MasterOrdersScreen() {
                                                 </View>
                                             ))}
                                         </View>
-                                        <View className="flex-row justify-between border-t border-gray-100 dark:border-gray-800 pt-2 mb-4">
+
+                                        <View className="flex-row justify-between border-t border-gray-100 dark:border-gray-800 pt-3 mb-4">
                                             <Text className="font-bold text-gray-600 dark:text-white">TOTAL</Text>
-                                            <Text className="font-extrabold text-red-500 text-lg">R$ {Number(order.total_price).toFixed(2).replace('.', ',')}</Text>
+                                            <Text className="font-extrabold text-red-500 text-xl">R$ {Number(order.total_price).toFixed(2).replace('.', ',')}</Text>
                                         </View>
 
-                                        {/* Acoes */}
+                                        {/* Ações */}
                                         {!isFinished && (
                                             <View className="flex-row justify-between space-x-2">
                                                 {order.status === 'pending' && (
                                                     <>
-                                                        <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'cancelled', true)} className="flex-1 border border-red-200 bg-red-50 p-3 rounded-xl items-center flex-row justify-center">
-                                                            <XCircle size={16} color="#EF4444" />
+                                                        <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'cancelled', true)} className="flex-1 border border-red-100 bg-red-50 dark:bg-red-900/10 p-4 rounded-2xl items-center flex-row justify-center">
+                                                            <XCircle size={18} color="#EF4444" />
                                                             <Text className="text-red-500 font-bold ml-2">Recusar</Text>
                                                         </TouchableOpacity>
-                                                        <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'preparing')} className="flex-1 bg-violet-500 shadow-md shadow-violet-500/30 p-3 rounded-xl items-center flex-row justify-center">
-                                                            <CheckCircle size={16} color="#FFF" />
+                                                        <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'preparing')} className="flex-1 bg-violet-600 shadow-lg shadow-violet-600/30 p-4 rounded-2xl items-center flex-row justify-center">
+                                                            <CheckCircle size={18} color="#FFF" />
                                                             <Text className="text-white font-bold ml-2">Aceitar</Text>
                                                         </TouchableOpacity>
                                                     </>
                                                 )}
                                                 {order.status === 'preparing' && (
-                                                    <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'delivering')} className="w-full bg-blue-500 shadow-md shadow-blue-500/30 p-3 rounded-xl items-center flex-row justify-center">
-                                                        <Truck size={16} color="#FFF" />
-                                                        <Text className="text-white font-bold ml-2">Enviar p/ Entrega</Text>
+                                                    <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'delivering')} className="w-full bg-blue-600 shadow-lg shadow-blue-600/30 p-4 rounded-2xl items-center flex-row justify-center">
+                                                        <Truck size={18} color="#FFF" />
+                                                        <Text className="text-white font-bold ml-2">Enviar para Entrega</Text>
                                                     </TouchableOpacity>
                                                 )}
                                                 {order.status === 'delivering' && (
-                                                    <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'delivered')} className="w-full bg-emerald-500 shadow-md shadow-emerald-500/30 p-3 rounded-xl items-center flex-row justify-center">
-                                                        <CheckCircle size={16} color="#FFF" />
-                                                        <Text className="text-white font-bold ml-2">Marcar Entregue</Text>
+                                                    <TouchableOpacity onPress={() => confirmStatusUpdate(order.id, 'delivered')} className="w-full bg-emerald-600 shadow-lg shadow-emerald-600/30 p-4 rounded-2xl items-center flex-row justify-center">
+                                                        <CheckCircle size={18} color="#FFF" />
+                                                        <Text className="text-white font-bold ml-2">Confirmar Entrega</Text>
                                                     </TouchableOpacity>
                                                 )}
                                             </View>
                                         )}
 
-                                        {/* Botão de Chat com o Cliente (em todos os pedidos que não estão cancelados) */}
+                                        {/* Botão de Chat (Sempre visível se não cancelado) */}
                                         {order.status !== 'cancelled' && (
                                             <TouchableOpacity
                                                 onPress={() => router.push(`/chat/${order.id}` as any)}
-                                                className="mt-3 bg-violet-50 border border-violet-200 p-3 rounded-xl flex-row justify-center items-center"
+                                                className="mt-3 bg-white dark:bg-gray-800 border border-violet-200 dark:border-violet-900/50 p-4 rounded-2xl flex-row justify-center items-center shadow-sm"
                                             >
-                                                <MessageCircle size={16} color="#8B5CF6" />
-                                                <Text className="text-violet-700 font-bold ml-2">Chat com o Cliente</Text>
+                                                <MessageCircle size={18} color="#8B5CF6" />
+                                                <Text className="text-violet-700 dark:text-violet-400 font-bold ml-2 text-base">Abrir Chat</Text>
                                             </TouchableOpacity>
                                         )}
                                     </View>
@@ -357,18 +398,21 @@ export default function MasterOrdersScreen() {
             {/* Modal de Mensagem para o Cliente (Recusar) */}
             <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-center bg-black/50 p-5">
-                    <View className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-lg">
-                        <View className="flex-row items-center mb-4">
-                            <MessageSquare size={24} color="#EF4444" />
-                            <Text className="text-xl font-extrabold text-gray-900 dark:text-white ml-2">Mensagem ao Cliente</Text>
+                    <View className="bg-white dark:bg-gray-800 p-8 rounded-[40px] shadow-2xl">
+                        <View className="flex-row items-center mb-6">
+                            <View className="bg-red-50 p-3 rounded-2xl mr-4">
+                                <MessageSquare size={24} color="#EF4444" />
+                            </View>
+                            <Text className="text-2xl font-black text-gray-900 dark:text-white">Mensagem</Text>
                         </View>
-                        <Text className="text-gray-500 dark:text-gray-400 mb-4 text-sm">
-                            Este pedido está sendo recusado ou precisou de ajustes. Deixe uma mensagem para o cliente (ex: "Acabou nosso pão de brioche, podemos trocar?").
+                        
+                        <Text className="text-gray-500 dark:text-gray-400 mb-6 text-sm leading-5">
+                            Por que você está cancelando este pedido? O cliente receberá esta mensagem instantaneamente.
                         </Text>
 
                         <TextInput
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 min-h-[100px] mb-6 text-base"
-                            placeholder="O motivo do cancelamento/alteração..."
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-gray-900 dark:text-white rounded-3xl px-5 py-4 min-h-[120px] mb-8 text-base"
+                            placeholder="Ex: Tivemos um problema com o motoboy..."
                             placeholderTextColor="#9ca3af"
                             multiline
                             textAlignVertical="top"
@@ -377,14 +421,14 @@ export default function MasterOrdersScreen() {
                         />
 
                         <View className="flex-row justify-between space-x-3">
-                            <TouchableOpacity onPress={() => setModalVisible(false)} className="flex-1 py-3 items-center rounded-xl bg-gray-100 dark:bg-gray-800">
+                            <TouchableOpacity onPress={() => setModalVisible(false)} className="flex-1 py-4 items-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                                 <Text className="text-gray-600 dark:text-white font-bold">Voltar</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => executeStatusUpdate(selectedOrderId!, updateStatusTo!, adminMessage)}
-                                className="flex-1 py-3 items-center rounded-xl bg-red-500 shadow-md shadow-red-500/30"
+                                className="flex-2 py-4 px-6 items-center rounded-2xl bg-red-500 shadow-xl shadow-red-500/20"
                             >
-                                <Text className="text-white font-bold">Enviar e Cancelar</Text>
+                                <Text className="text-white font-extrabold">Confirmar Cancelamento</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

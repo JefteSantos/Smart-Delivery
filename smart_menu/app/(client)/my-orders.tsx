@@ -1,11 +1,11 @@
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { Package, Truck, CheckCircle, Clock, ChevronDown, ChevronUp, RefreshCw, RefreshCcw, MessageCircle } from 'lucide-react-native';
 import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/authStore';
-import { useCartStore } from '../../store/cartStore';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { showWebNotification } from '../../lib/notifications';
+import { showWebNotification } from '@/lib/notifications';
 
 interface OrderItem {
     id: string;

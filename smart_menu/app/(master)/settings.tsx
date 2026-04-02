@@ -1,22 +1,27 @@
 import { View, Text, Switch, TouchableOpacity, ScrollView, TextInput, Alert, Modal } from 'react-native';
 import { Settings, Lock, Store, Clock, Bell, CheckCircle2, LogOut } from 'lucide-react-native';
 import { useState, useCallback } from 'react';
-import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '@/store/authStore';
+import { supabase } from '@/lib/supabase';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useAddressFromCep } from '../../lib/useAddressFromCep';
+import { useAddressFromCep } from '@/lib/useAddressFromCep';
+
+import { useColorScheme } from 'nativewind';
 
 export default function MasterSettingsScreen() {
     const [storeOpen, setStoreOpen] = useState(true);
     const [autoAcceptance, setAutoAcceptance] = useState(false);
     const [storeName, setStoreName] = useState('Smart Delivery Menu');
     const [deliveryFee, setDeliveryFee] = useState('5.00');
+    const [deliveryFeePerKm, setDeliveryFeePerKm] = useState('0.00');
     const [storeCep, setStoreCep] = useState('');
     const [storeAddress, setStoreAddress] = useState('');
     const [maxDeliveryDistance, setMaxDeliveryDistance] = useState('10');
     const [loading, setLoading] = useState(false);
+    const [settingId, setSettingId] = useState<number | null>(null);
     const [isPasswordModalVisible, setPasswordModalVisible] = useState(false);
     const [newPassword, setNewPassword] = useState('');
+    const { colorScheme, toggleColorScheme } = useColorScheme();
 
     const { loadingCep, fetchAddressFromCep, formatCep } = useAddressFromCep();
 
@@ -27,10 +32,12 @@ export default function MasterSettingsScreen() {
         try {
             const { data, error } = await supabase.from('settings').select('*').single();
             if (data) {
+                setSettingId(data.id);
                 setStoreOpen(data.is_open);
                 setAutoAcceptance(data.auto_acceptance);
                 setStoreName(data.store_name);
                 setDeliveryFee(data.delivery_fee.toString());
+                setDeliveryFeePerKm(data.delivery_fee_per_km?.toString() || '0.00');
                 setStoreCep(data.store_cep || '');
                 setStoreAddress(data.store_address || '');
                 setMaxDeliveryDistance(data.max_delivery_distance?.toString() || '10');
@@ -56,17 +63,18 @@ export default function MasterSettingsScreen() {
     const handleSaveSettings = async () => {
         setLoading(true);
         try {
-            // Verifica/insere (Upsert simplificado, assumindo id=1)
-            const { error } = await supabase.from('settings').upsert({
-                id: 1,
+            if (!settingId) throw new Error("ID da configuração não encontrado. Tente atualizar a tela.");
+
+            const { error } = await supabase.from('settings').update({
                 is_open: storeOpen,
                 auto_acceptance: autoAcceptance,
                 store_name: storeName,
                 delivery_fee: parseFloat(deliveryFee.replace(',', '.')),
+                delivery_fee_per_km: parseFloat(deliveryFeePerKm.replace(',', '.')),
                 store_cep: storeCep.replace(/\D/g, ''),
                 store_address: storeAddress,
                 max_delivery_distance: parseInt(maxDeliveryDistance) || 10
-            });
+            }).eq('id', settingId);
 
             if (error) throw error;
             Alert.alert("Sucesso", "Configurações atualizadas!");
@@ -108,6 +116,26 @@ export default function MasterSettingsScreen() {
             <View className="mb-8">
                 <Text className="text-2xl font-extrabold text-gray-900 dark:text-white">Configurações</Text>
                 <Text className="text-gray-500 dark:text-gray-400">Ajustes operacionais da loja.</Text>
+            </View>
+
+            {/* PREFERÊNCIAS DO APP */}
+            <View className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5 mb-6">
+                <View className="flex-row items-center mb-4 border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <Bell size={20} color="#3B82F6" />
+                    <Text className="font-bold text-gray-800 dark:text-white ml-2 text-lg">Preferências</Text>
+                </View>
+
+                <View className="flex-row items-center justify-between">
+                    <View>
+                        <Text className="font-bold text-gray-800 dark:text-white text-base">Modo Escuro (Dark Mode)</Text>
+                        <Text className="text-gray-500 dark:text-gray-400 text-xs">Altera a visualização deste dispositivo.</Text>
+                    </View>
+                    <Switch
+                        value={colorScheme === 'dark'}
+                        onValueChange={toggleColorScheme}
+                        trackColor={{ false: "#d1d5db", true: "#3B82F6" }}
+                    />
+                </View>
             </View>
 
             {/* STATUS DA LOJA */}
@@ -155,10 +183,16 @@ export default function MasterSettingsScreen() {
                     value={storeName} onChangeText={setStoreName}
                 />
 
-                <Text className="font-bold text-gray-700 dark:text-white text-xs mb-1 uppercase tracking-wider">Taxa de Entrega Padrão (R$)</Text>
+                <Text className="font-bold text-gray-700 dark:text-white text-xs mb-1 uppercase tracking-wider">Taxa de Entrega Base (R$)</Text>
                 <TextInput
-                    className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-800 dark:text-white font-medium"
+                    className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-800 dark:text-white font-medium mb-4"
                     value={deliveryFee} keyboardType="numeric" onChangeText={setDeliveryFee}
+                />
+
+                <Text className="font-bold text-gray-700 dark:text-white text-xs mb-1 uppercase tracking-wider">Taxa Adicional por KM (R$)</Text>
+                <TextInput
+                    className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-800 dark:text-white font-medium mb-4"
+                    value={deliveryFeePerKm} keyboardType="numeric" onChangeText={setDeliveryFeePerKm}
                 />
                 <Text className="font-bold text-gray-700 dark:text-white text-xs mb-1 uppercase tracking-wider">
                     CEP Sede do Restaurante {loadingCep && <Text className="text-blue-500 capitalize text-[10px]">(Buscando...)</Text>}

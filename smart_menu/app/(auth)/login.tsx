@@ -1,9 +1,9 @@
 import { View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { mapSessionToUser } from '../../lib/utils';
+import { supabase } from '@/lib/supabase';
+import { mapSessionToUser, isValidEmail } from '@/lib/utils';
 
 export default function LoginScreen() {
     const loginStore = useAuthStore((state) => state.login);
@@ -24,7 +24,7 @@ export default function LoginScreen() {
         }
 
         const trimmedEmail = email.trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        if (!isValidEmail(trimmedEmail)) {
             setErrorMessage("O formato do e-mail é inválido (exemplo@email.com).");
             return;
         }

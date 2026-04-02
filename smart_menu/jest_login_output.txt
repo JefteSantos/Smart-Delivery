@@ -1,0 +1,45 @@
+﻿node.exe : FAIL __tests__/login.test.tsx
+No C:\Program Files\nodejs\npx.ps1:29 
+caractere:3
++   & $NODE_EXE $NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified 
+   : (FAIL __tests__/login.test.tsx:Strin  
+  g) [], RemoteException
+    + FullyQualifiedErrorId : NativeComman 
+   dError
+ 
+  ÔùÅ Test suite failed to run
+
+    Cannot find module 
+'../../lib/supabase' from 
+'__tests__/login.test.tsx'
+
+    [0m [90m 12 |[39m
+     [90m 13 |[39m [90m// Mock do 
+Supabase[39m
+    [31m[1m>[22m[39m[90m 14 |[39m jes
+t[33m.[39mmock([32m'../../lib/supabase'
+[39m[33m,[39m () [33m=>[39m ({
+     [90m    |[39m      
+[31m[1m^[22m[39m
+     [90m 15 |[39m     
+supabase[33m:[39m {
+     [90m 16 |[39m         
+auth[33m:[39m {
+     [90m 17 |[39m             
+signInWithPassword[33m:[39m 
+jest[33m.[39mfn()[33m,[39m[0m
+
+      at Resolver._throwModNotFoundError (n
+ode_modules/jest-resolve/build/index.js:863
+:11)
+      at Object.mock 
+(__tests__/login.test.tsx:14:6)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        0.551 s
+Ran all test suites matching 
+__tests__/login.test.tsx.

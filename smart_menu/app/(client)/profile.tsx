@@ -1,9 +1,9 @@
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
 import { User, Settings, Bell, ChevronRight, LogOut, Camera, ClipboardList } from 'lucide-react-native';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';

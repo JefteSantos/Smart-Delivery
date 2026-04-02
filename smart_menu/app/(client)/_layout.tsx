@@ -16,22 +16,28 @@ export default function ClientLayout() {
         if (!user) return;
 
         const checkBadges = async () => {
-            const { count: ordersCount } = await supabase
+            const { data: myOrders } = await supabase
                 .from('orders')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', user.id)
-                .in('status', ['pending', 'preparing', 'delivering']);
+                .select('id, status')
+                .eq('user_id', user.id);
             
-            // Busca mensagens que o restaurante mandou e o cliente não viu
-            const { count: unreadCount, error: unreadErr } = await supabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('is_read', false)
-                .eq('sender_role', 'master');
+            const myOrderIds = myOrders?.map(o => o.id) || [];
+            const activeOrdersCount = (myOrders || []).filter(o => ['pending', 'preparing', 'delivering'].includes(o.status)).length;
             
-            const totalUnread = unreadErr ? 0 : (unreadCount || 0);
+            let totalUnread = 0;
+            if (myOrderIds.length > 0) {
+                // Busca mensagens que o restaurante mandou e o cliente não viu
+                const { count: unreadCount, error: unreadErr } = await supabase
+                    .from('messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('is_read', false)
+                    .eq('sender_role', 'master')
+                    .in('order_id', myOrderIds);
+                
+                totalUnread = unreadErr ? 0 : (unreadCount || 0);
+            }
 
-            setActiveOrders((ordersCount || 0) + totalUnread);
+            setActiveOrders(activeOrdersCount + totalUnread);
         };
 
         checkBadges();
@@ -62,7 +68,7 @@ export default function ClientLayout() {
             supabase.removeChannel(channelOrders);
             supabase.removeChannel(channelMessages);
         };
-    }, [user]);
+    }, [user?.id]);
 
     return (
         <Tabs

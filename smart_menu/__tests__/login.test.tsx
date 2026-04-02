@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import LoginScreen from './login';
+import LoginScreen from '../app/(auth)/login';
 
 // Mock do expo-router
 jest.mock('expo-router', () => ({
@@ -11,7 +11,7 @@ jest.mock('expo-router', () => ({
 }));
 
 // Mock do Supabase
-jest.mock('../../lib/supabase', () => ({
+jest.mock('../lib/supabase', () => ({
     supabase: {
         auth: {
             signInWithPassword: jest.fn(),

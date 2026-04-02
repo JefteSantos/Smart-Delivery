@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { ArrowLeft, User, Mail, Check, MapPin } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, Check, MapPin, Phone } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -14,6 +14,7 @@ export default function MyDataScreen() {
     const [name, setName] = useState(user?.name || '');
     const [cep, setCep] = useState(user?.cep || '');
     const [address, setAddress] = useState(user?.address || '');
+    const [phone, setPhone] = useState(user?.phone || '');
     const [saving, setSaving] = useState(false);
 
     const handleCepChange = async (text: string) => {
@@ -34,7 +35,7 @@ export default function MyDataScreen() {
             return;
         }
 
-        if (name === user?.name && address === user?.address && cep === user?.cep) {
+        if (name === user?.name && address === user?.address && cep === user?.cep && phone === user?.phone) {
             Alert.alert("Aviso", "Nenhuma alteração feita.");
             return;
         }
@@ -43,7 +44,7 @@ export default function MyDataScreen() {
 
         // Atualiza os metadados no Supabase
         const { data, error } = await supabase.auth.updateUser({
-            data: { name: name, address: address, cep: cep.replace(/\D/g, '') }
+            data: { name: name, address: address, cep: cep.replace(/\D/g, ''), phone: phone.replace(/\D/g, '') }
         });
 
         setSaving(false);
@@ -57,7 +58,8 @@ export default function MyDataScreen() {
                     ...user,
                     name: name,
                     address: address,
-                    cep: cep.replace(/\D/g, '')
+                    cep: cep.replace(/\D/g, ''),
+                    phone: phone.replace(/\D/g, '')
                 });
                 Alert.alert("Sucesso", "Seus dados foram atualizados com sucesso!", [
                     { text: "OK", onPress: () => router.back() }
@@ -118,6 +120,21 @@ export default function MyDataScreen() {
                             />
                         </View>
 
+                        {/* Campo de Telefone (Editável) */}
+                        <View className="mt-5">
+                            <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1 flex-row items-center">
+                                <Phone size={16} color="#6B7280" /> Telefone (Celular)
+                            </Text>
+                            <TextInput
+                                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 transition-colors"
+                                placeholder="(11) 99999-9999"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="phone-pad"
+                                value={phone}
+                                onChangeText={setPhone}
+                            />
+                        </View>
+
                         {/* Campo de Endereço (Editável) */}
                         <View className="mt-5">
                             <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1 flex-row items-center">
@@ -148,9 +165,9 @@ export default function MyDataScreen() {
 
                     {/* Botão de Salvar */}
                     <TouchableOpacity
-                        className={`py-4 rounded-xl items-center shadow-md flex-row justify-center mb-10 ${saving || (name === user.name && address === user.address && cep === user.cep) ? 'bg-gray-400 shadow-gray-400/30' : 'bg-red-500 shadow-red-500/30'}`}
+                        className={`py-4 rounded-xl items-center shadow-md flex-row justify-center mb-10 ${saving || (name === user.name && address === user.address && cep === user.cep && phone === user.phone) ? 'bg-gray-400 shadow-gray-400/30' : 'bg-red-500 shadow-red-500/30'}`}
                         onPress={handleSave}
-                        disabled={saving || (name === user.name && address === user.address && cep === user.cep)}
+                        disabled={saving || (name === user.name && address === user.address && cep === user.cep && phone === user.phone)}
                     >
                         {saving ? (
                             <ActivityIndicator color="white" />

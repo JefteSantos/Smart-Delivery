@@ -86,9 +86,9 @@ export default function Catalog() {
 
     const offersOfTheDay = products.filter((p) => p.isOfferOfTheDay);
 
-    // Filtramos os produtos normais para mostrar APENAS os da categoria selecionada (e que não sejam a oferta destacada)
+    // Filtramos os produtos normais para mostrar APENAS os da categoria selecionada
     const filteredProducts = products.filter(
-        (p: any) => p.categoryId === selectedCategoryId && !p.isOfferOfTheDay
+        (p: any) => p.categoryId === selectedCategoryId
     );
 
     const renderProduct = (item: Product, highlight: boolean = false) => (

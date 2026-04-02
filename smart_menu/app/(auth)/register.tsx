@@ -1,8 +1,9 @@
 import { View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAddressFromCep } from '../../lib/useAddressFromCep';
+import { supabase } from '@/lib/supabase';
+import { useAddressFromCep } from '@/lib/useAddressFromCep';
+import { isValidEmail } from '@/lib/utils';
 
 export default function RegisterScreen() {
     const router = useRouter();
@@ -14,6 +15,7 @@ export default function RegisterScreen() {
     const [address, setAddress] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [phone, setPhone] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -28,7 +30,7 @@ export default function RegisterScreen() {
     const handleRegister = async () => {
         setErrorMessage('');
 
-        if (!name || !email || !address || !password || !confirmPassword) {
+        if (!name || !email || !address || !password || !confirmPassword || !phone) {
             setErrorMessage("Preencha todos os campos!");
             return;
         }
@@ -44,7 +46,7 @@ export default function RegisterScreen() {
         }
 
         const trimmedEmail = email.trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        if (!isValidEmail(trimmedEmail)) {
             setErrorMessage("E-mail com formato inválido. Use algo como: seu@email.com");
             return;
         }
@@ -65,6 +67,7 @@ export default function RegisterScreen() {
                         name: name,
                         address: address,
                         cep: cep.replace(/\D/g, ''),
+                        phone: phone.replace(/\D/g, ''),
                         push_notifications: true,
                         promo_emails: false
                     }
@@ -134,6 +137,27 @@ export default function RegisterScreen() {
                             autoCapitalize="none"
                             value={email}
                             onChangeText={setEmail}
+                        />
+                    </View>
+
+                    <View className="mt-4">
+                        <Text className="text-gray-700 dark:text-white font-bold mb-2 ml-1">Telefone (WhatsApp)</Text>
+                        <TextInput
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-4 focus:border-red-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
+                            placeholder="(00) 00000-0000"
+                            placeholderTextColor="#9ca3af"
+                            keyboardType="phone-pad"
+                            maxLength={15}
+                            value={phone}
+                            onChangeText={(t) => {
+                                const raw = t.replace(/\D/g, '');
+                                let f = '';
+                                if (raw.length <= 11) {
+                                    f = raw.replace(/^(\d{2})(\d)/g, '($1) $2');
+                                    f = f.replace(/(\d{5})(\d)/, '$1-$2');
+                                }
+                                setPhone(f || raw);
+                            }}
                         />
                     </View>
 

@@ -135,13 +135,16 @@ export async function registerForPushNotificationsAsync(
             await supabase
                 .from('settings')
                 .update({ master_push_token: token, master_user_id: userId })
-                .neq('id', '00000000-0000-0000-0000-000000000000'); // atualiza qualquer linha
+                .eq('id', 1); // a tabela usa ID inteiro 1!
         }
 
         return token;
-    } catch (err) {
-        // Acontece quando não há projectId configurado no EAS
-        console.info('[Notifications] Não foi possível obter push token:', err);
+    } catch (err: any) {
+        // Exibe o erro exato na tela para diagnosticar o problema
+        console.error('[Notifications] Falha crítica:', err);
+        import('react-native').then(({ Alert }) => {
+            Alert.alert("Erro de Notificação", `Não foi possível registrar o Token:\n${err?.message || err}`);
+        });
         return null;
     }
 }

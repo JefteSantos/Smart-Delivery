@@ -80,7 +80,11 @@ export default function RootLayout() {
         const userObj = mapSessionToUser(session);
         loginStore(userObj);
         // Registra ou atualiza o token sempre que a sessão mudar
-        registerForPushNotificationsAsync(userObj.id, userObj.role);
+        if (Platform.OS === 'web') {
+          requestWebNotificationPermission();
+        } else {
+          registerForPushNotificationsAsync(userObj.id, userObj.role);
+        }
       } else {
         logoutStore();
       }
@@ -91,11 +95,18 @@ export default function RootLayout() {
     if (Platform.OS !== 'web') {
       notifSub = Notifications.addNotificationResponseReceivedListener(response => {
         const data = response.notification.request.content.data;
-        if (data?.orderId) {
-          router.push(`/chat/${data.orderId}` as any);
-        } else if (data?.screen) {
-          router.push(data.screen as any);
-        }
+        const handlePush = () => {
+          if (!useAuthStore.getState().isHydrated) {
+            setTimeout(handlePush, 100);
+            return;
+          }
+          if (data?.orderId) {
+            router.push(`/chat/${data.orderId}` as any);
+          } else if (data?.screen) {
+            router.push(data.screen as any);
+          }
+        };
+        handlePush();
       });
     }
 

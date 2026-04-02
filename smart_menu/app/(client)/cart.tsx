@@ -1,14 +1,14 @@
 import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { useCartStore } from '../../store/cartStore';
-import { useAuthStore } from '../../store/authStore';
+import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 import { Minus, Plus, Trash2, CheckCircle, MapPin } from 'lucide-react-native';
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { Truck, Store } from 'lucide-react-native';
 import { getDistance } from 'geolib';
-import { useAddressFromCep } from '../../lib/useAddressFromCep';
-import { getMasterPushToken, sendPushNotification } from '../../lib/notifications';
+import { useAddressFromCep } from '@/lib/useAddressFromCep';
+import { getMasterPushToken, sendPushNotification } from '@/lib/notifications';
 
 export default function CartScreen() {
     const { items, addItem, removeItem, getTotalPrice, clearCart } = useCartStore();
@@ -22,8 +22,18 @@ export default function CartScreen() {
     const [deliveryMode, setDeliveryMode] = useState<'delivery' | 'pickup'>('delivery');
     const [deliveryAddress, setDeliveryAddress] = useState(user?.address || '');
     const [clientCep, setClientCep] = useState(user?.cep || '');
+    const [calculatedDeliveryFee, setCalculatedDeliveryFee] = useState(0.00);
+    const [calculatingFee, setCalculatingFee] = useState(false);
 
     const [settings, setSettings] = useState<any>(null);
+
+    // Sincroniza o banco de dados/store com os inputs caso carreguem atrasado (hydration)
+    useEffect(() => {
+        if (user) {
+            setClientCep(prev => prev || user.cep || '');
+            setDeliveryAddress(prev => prev || user.address || '');
+        }
+    }, [user]);
 
     // CORREÇÃO: Ref para evitar race condition de duplo clique no checkout
     const isSubmitting = useRef(false);
@@ -40,23 +50,73 @@ export default function CartScreen() {
         const formatted = formatCep(text);
         setClientCep(formatted);
         const raw = text.replace(/\D/g, '');
-        await fetchAddressFromCep(raw, setDeliveryAddress);
+        if (raw.length === 8) {
+            await fetchAddressFromCep(raw, setDeliveryAddress);
+            // Ao mudar o CEP, recalcula o frete
+            updateDeliveryFee(raw);
+        }
     };
 
+    const updateDeliveryFee = async (rawCep: string) => {
+        if (!settings || deliveryMode !== 'delivery') return;
+        setCalculatingFee(true);
+        try {
+            const storeCoords = await getCoordinatesFromCep(settings.store_cep.replace(/\D/g, ''));
+            const clientCoords = await getCoordinatesFromCep(rawCep);
+
+            if (storeCoords && clientCoords) {
+                const distanceMeters = getDistance(storeCoords, clientCoords);
+                const distanceKm = distanceMeters / 1000;
+                
+                let dynamicFee = 0;
+                if (distanceKm > 2) {
+                    const baseFee = settings.delivery_fee || 0;
+                    const perKmFee = settings.delivery_fee_per_km || 0;
+                    // Cobra proporcionalmente pela distância extra que excedeu 2km
+                    const extraDistance = distanceKm - 2;
+                    dynamicFee = baseFee + (extraDistance * perKmFee);
+                }
+                
+                setCalculatedDeliveryFee(dynamicFee > 0 ? dynamicFee : 0);
+            } else {
+                setCalculatedDeliveryFee(settings.delivery_fee ?? 5.00);
+            }
+        } catch {
+            setCalculatedDeliveryFee(settings.delivery_fee ?? 5.00);
+        } finally {
+            setCalculatingFee(false);
+        }
+    };
+
+    useEffect(() => {
+        if (settings && clientCep && deliveryMode === 'delivery') {
+            updateDeliveryFee(clientCep.replace(/\D/g, ''));
+        } else if (deliveryMode !== 'delivery') {
+            setCalculatedDeliveryFee(0);
+        }
+    }, [deliveryMode, settings, clientCep]);
+
     const total = getTotalPrice();
-    const deliveryFee = deliveryMode === 'delivery' ? (settings?.delivery_fee || 5.00) : 0.00;
+    const deliveryFee = deliveryMode === 'delivery' ? calculatedDeliveryFee : 0.00;
     const finalTotal = total + deliveryFee;
 
-    // Busca Latitude e Longitude do ViaCEP para cálculo via Nominatim (OpenStreetMap)
     const getCoordinatesFromCep = async (cepStr: string) => {
         try {
             const viaCepRes = await fetch(`https://viacep.com.br/ws/${cepStr}/json/`);
             const viaCepData = await viaCepRes.json();
             if (viaCepData.erro) return null;
 
-            const addressQuery = `${viaCepData.logradouro}, ${viaCepData.localidade}, ${viaCepData.uf}, Brazil`;
-            const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}`);
-            const nomData = await nomRes.json();
+            // Tentativa 1: Endereço completo
+            let addressQuery = `${viaCepData.logradouro}, ${viaCepData.localidade}, ${viaCepData.uf}, Brazil`;
+            let nomRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}`);
+            let nomData = await nomRes.json();
+            
+            // Tentativa 2: Falback pro Bairro caso a rua não exista no banco do OpenStreetMap (CEP aberto as vezes erra Latitude)
+            if (!nomData || nomData.length === 0) {
+                addressQuery = `${viaCepData.bairro}, ${viaCepData.localidade}, Brazil`;
+                nomRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}`);
+                nomData = await nomRes.json();
+            }
 
             if (nomData && nomData.length > 0) {
                 return {
@@ -89,10 +149,7 @@ export default function CartScreen() {
 
         // CORREÇÃO: Verificar se a loja está aberta antes de processar o pedido
         if (settings && !settings.is_open) {
-            Alert.alert(
-                "Loja Fechada",
-                "O restaurante não está aceitando pedidos no momento. Tente novamente mais tarde."
-            );
+            Alert.alert("Loja Fechada", "O restaurante não está aceitando pedidos no momento.");
             return;
         }
 
@@ -132,6 +189,7 @@ export default function CartScreen() {
                 .insert([{
                     user_id: user.id,
                     client_name: user.name || 'Cliente Sem Nome',
+                    client_phone: user.phone || null,
                     total_price: finalTotal,
                     items_count: items.reduce((acc, item) => acc + item.quantity, 0),
                     delivery_fee: deliveryFee,
@@ -222,7 +280,8 @@ export default function CartScreen() {
 
     return (
         <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
             className="flex-1 bg-gray-50 dark:bg-gray-900"
         >
             <ScrollView 
@@ -345,8 +404,8 @@ export default function CartScreen() {
                         <Text className="text-gray-600 dark:text-white font-medium">R$ {total.toFixed(2).replace('.', ',')}</Text>
                     </View>
                     <View className="flex-row justify-between mb-4 pb-4 border-b border-gray-100 dark:border-gray-800">
-                        <Text className="text-gray-400 dark:text-gray-400 font-medium">Taxa de Entrega</Text>
-                        <Text className="text-gray-600 dark:text-white font-medium">R$ {deliveryFee.toFixed(2).replace('.', ',')}</Text>
+                        <Text className="text-gray-400 dark:text-gray-400 font-medium">Taxa de Entrega {calculatingFee && <ActivityIndicator size="small" color="#3B82F6" />}</Text>
+                        <Text className="text-gray-600 dark:text-white font-medium">{deliveryMode === 'pickup' ? 'Grátis' : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}</Text>
                     </View>
 
                     <View className="flex-row justify-between mb-6">

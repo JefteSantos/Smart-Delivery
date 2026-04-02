@@ -1,0 +1,62 @@
+﻿node.exe : PASS __tests__/cartStore.test.ts
+No C:\Program Files\nodejs\npx.ps1:29 
+caractere:3
++   & $NODE_EXE $NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified 
+   : (PASS __tests__/cartStore.test.ts:St  
+  ring) [], RemoteException
+    + FullyQualifiedErrorId : NativeComman 
+   dError
+ 
+  L├│gica do Carrinho (cartStore.ts)
+    ÔêÜ deve adicionar um novo produto com 
+quantidade 1 (11 ms)
+    ÔêÜ deve somar a quantidade do mesmo 
+produto ao adicion├í-lo de novo (1 ms)
+    ÔêÜ deve reduzir a quantidade de um 
+produto caso ele tenha mais que 1 (1 ms)
+    ÔêÜ deve remover fisicamente o produto 
+se a quantidade chegar a zero (1 ms)
+    ÔêÜ deve calcular o valor total com 
+extrema exatid├úo (1 ms)
+    ÔêÜ deve esvaziar o carrinho 
+instantaneamente no clearCart() (2 ms)
+
+PASS __tests__/utils.test.ts
+  Utilit├írios (lib/utils.ts)
+    mapSessionToUser
+      ÔêÜ deve extrair o "role" de cliente 
+corretamente quando n├úo for master (15 ms)
+      ÔêÜ deve extrair o "role" master 
+APENAS se o metadata tiver master 
+verdadeiro (1 ms)
+      ÔêÜ deve formatar o nome baseado no 
+e-mail caso o nome n├úo exista (1 ms)
+    isValidEmail
+      ÔêÜ deve aprovar e-mails em formato 
+padr├úo (ex: nome@dominio.com) (2 ms)
+      ÔêÜ deve BLOQUEAR e-mails bizarros 
+ou sem dom├¡nio raiz (.com) (3 ms)
+
+PASS __tests__/authStore.test.ts
+  Auth Store (authStore.ts)
+    ÔêÜ deve inicializar com o usu├írio 
+nulo (6 ms)
+    ÔêÜ deve atualizar o estado do 
+usu├írio ap├│s login (3 ms)
+    ÔêÜ deve limpar o usu├írio ao fazer 
+logout (1 ms)
+
+PASS __tests__/login.test.tsx
+  Tela de Login (LoginScreen)
+    ÔêÜ deve exibir erro se tentar logar 
+com campos vazios (618 ms)
+    ÔêÜ deve exibir erro para formato de 
+e-mail inv├ílido (33 ms)
+
+Test Suites: 4 passed, 4 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        2.975 s
+Ran all test suites.

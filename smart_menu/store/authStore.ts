@@ -8,6 +8,7 @@ export interface User {
     address?: string;
     cep?: string;
     avatar_url?: string;
+    phone?: string;
 }
 
 interface AuthState {

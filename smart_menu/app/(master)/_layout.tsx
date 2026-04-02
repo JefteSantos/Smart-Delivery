@@ -1,8 +1,9 @@
 import { Tabs, useRouter } from 'expo-router';
 import { Home, Utensils, Settings, ClipboardList } from 'lucide-react-native';
 import { useAuthStore } from '../../store/authStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { Audio } from 'expo-av';
 
 export default function MasterLayout() {
     const user = useAuthStore((state) => state.user);
@@ -21,58 +22,84 @@ export default function MasterLayout() {
     }, [user]);
 
     const [pendingOrders, setPendingOrders] = useState(0);
+    const initialLoadDone = useRef(false);
+    const prevCountRef = useRef(0);
+
+    async function playNotificationSound() {
+        // Delay minúsculo para garantir que o áudio não brigue com o processamento do Realtime
+        setTimeout(async () => {
+            try {
+                const { sound } = await Audio.Sound.createAsync(
+                    { uri: 'https://github.com/AnestisG/Fetch-Beep/raw/master/beep.mp3' },
+                    { shouldPlay: true }
+                );
+                sound.setOnPlaybackStatusUpdate((status) => {
+                    if (status.isLoaded && status.didJustFinish) {
+                        sound.unloadAsync();
+                    }
+                });
+            } catch (error) {
+                console.error('[MasterLayout] Erro ao tocar som:', error);
+            }
+        }, 100);
+    }
 
     useEffect(() => {
         if (!user || user.role !== 'master') return;
 
-        const checkBadges = async () => {
-            const { count: ordersCount } = await supabase
-                .from('orders')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'pending');
+        const checkBadges = async (shouldPlaySound = false) => {
+            try {
+                const { count: ordersCount } = await supabase
+                    .from('orders')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'pending');
 
-            
-            // Busca mensagens que o cliente mandou e o restaurante não viu
-            const { count: unreadCount, error: unreadErr } = await supabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('is_read', false)
-                .eq('sender_role', 'client');
+                const { count: unreadCount } = await supabase
+                    .from('messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('is_read', false)
+                    .eq('sender_role', 'client');
 
-            const totalUnread = unreadErr ? 0 : (unreadCount || 0);
+                const newTotal = (ordersCount || 0) + (unreadCount || 0);
 
-            setPendingOrders((ordersCount || 0) + totalUnread);
+                // Só toca som se for um evento Realtime (shouldPlaySound=true) 
+                // E o total de pendências aumentou em relação ao que temos na Ref
+                if (shouldPlaySound && newTotal > prevCountRef.current && initialLoadDone.current) {
+                    playNotificationSound();
+                }
+
+                prevCountRef.current = newTotal;
+                setPendingOrders(newTotal);
+                initialLoadDone.current = true;
+            } catch (err) {
+                console.error('[MasterLayout] Erro na contagem:', err);
+            }
         };
 
-        checkBadges();
+        // Carga inicial
+        checkBadges(false);
 
+        // Ouvinte de Pedidos
         const channelOrders = supabase
-            .channel('master_layout_orders')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'orders' },
-                () => {
-                    checkBadges();
-                }
-            )
+            .channel('master_realtime_orders')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => {
+                checkBadges(true);
+            })
             .subscribe();
 
+        // Ouvinte de Mensagens
         const channelMessages = supabase
-            .channel('layout_unread_messages_master')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'messages' },
-                () => {
-                    checkBadges();
-                }
-            )
+            .channel('master_realtime_messages')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+                checkBadges(true);
+            })
             .subscribe();
 
         return () => {
             supabase.removeChannel(channelOrders);
             supabase.removeChannel(channelMessages);
         };
-    }, []);
+    }, [user]);
 
     if (!user || user.role !== 'master') {
         return null;

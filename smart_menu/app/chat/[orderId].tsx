@@ -4,10 +4,11 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/authStore';
+import { Audio } from 'expo-av';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 import { ArrowLeft, Send, MessageCircle } from 'lucide-react-native';
-import { getMasterPushToken, getTokenForUser, sendPushNotification, showWebNotification } from '../../lib/notifications';
+import { getMasterPushToken, getTokenForUser, sendPushNotification, showWebNotification } from '@/lib/notifications';
 
 interface Message {
     id: string;
@@ -21,6 +22,7 @@ interface Message {
 interface OrderInfo {
     id: string;
     client_name: string;
+    client_phone?: string;
     status: string;
 }
 
@@ -42,6 +44,24 @@ export default function ChatScreen() {
     const accentColor = user?.role === 'master' ? '#8B5CF6' : '#EF4444';
     const accentBg = user?.role === 'master' ? 'bg-violet-600' : 'bg-red-500';
 
+    async function playNotificationSound() {
+        setTimeout(async () => {
+            try {
+                const { sound } = await Audio.Sound.createAsync(
+                    require('../../assets/sounds/beep.mp3'),
+                    { shouldPlay: true }
+                );
+                sound.setOnPlaybackStatusUpdate((status) => {
+                    if (status.isLoaded && status.didJustFinish) {
+                        sound.unloadAsync();
+                    }
+                });
+            } catch (error) {
+                console.error('[ChatScreen] Erro ao tocar som:', error);
+            }
+        }, 100);
+    }
+
     const fetchMessages = useCallback(async () => {
         const { data } = await supabase
             .from('messages')
@@ -57,7 +77,7 @@ export default function ChatScreen() {
         // Busca informações do pedido (nome do cliente, status)
         supabase
             .from('orders')
-            .select('id, client_name, status')
+            .select('id, client_name, client_phone, status')
             .eq('id', orderId)
             .single()
             .then(({ data }) => { if (data) setOrderInfo(data); });
@@ -99,6 +119,8 @@ export default function ChatScreen() {
 
                     // Se a mensagem veio de outra pessoa
                     if (newMsg.sender_id !== user?.id) {
+                        playNotificationSound();
+                        
                         // Marca como lida instantaneamente porque o usuário está com o chat aberto!
                         supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id).then();
 
@@ -191,7 +213,8 @@ export default function ChatScreen() {
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
             className="flex-1 bg-gray-50 dark:bg-gray-900"
         >
             {/* ── Header ── */}
@@ -211,12 +234,13 @@ export default function ChatScreen() {
                 </View>
 
                 <View className="flex-1">
-                    <Text className="font-bold text-gray-900 dark:text-white text-base" numberOfLines={1}>
+                    <Text className="text-gray-900 dark:text-white text-base font-bold" numberOfLines={1}>
                         {user?.role === 'master'
                             ? (orderInfo?.client_name || 'Cliente')
                             : '🍴 Restaurante'}
                     </Text>
                     <Text className="text-xs text-gray-400">
+                        {user?.role === 'master' && orderInfo?.client_phone ? `${orderInfo.client_phone} · ` : ''}
                         Pedido #{orderId?.slice(0, 6).toUpperCase()}
                         {orderInfo?.status ? ` · ${getStatusLabel(orderInfo.status)}` : ''}
                     </Text>

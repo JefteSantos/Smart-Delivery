@@ -1,4 +1,4 @@
-import { useAuthStore, User } from './authStore';
+import { useAuthStore, User } from '../store/authStore';
 
 const mockUser: User = {
     id: 'u1',

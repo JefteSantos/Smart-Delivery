@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, Modal, TextInput, Switch } from 'react-native';
 import { Plus, X, Pencil, Trash2, FolderEdit, ChevronUp, ChevronDown, Camera, Image as ImageIcon } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
@@ -332,7 +332,16 @@ export default function MasterMenuScreen() {
                     // Produtos DESSA categoria especifica
                     const catProducts = products.filter(p => p.category_id === cat.id);
 
-                    if (catProducts.length === 0) return null; // Esconde a aba se tiver vazia na visão geral
+                    if (catProducts.length === 0) {
+                        return (
+                            <View key={cat.id} className="mb-8">
+                                <Text className="text-lg font-bold text-gray-800 dark:text-white mb-3 ml-1">{cat.name}</Text>
+                                <View className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-800 items-center justify-center shadow-sm">
+                                    <Text className="text-gray-400 dark:text-gray-500 text-sm font-medium">Nenhum produto nesta categoria.</Text>
+                                </View>
+                            </View>
+                        );
+                    }
 
                     return (
                         <View key={cat.id} className="mb-8">

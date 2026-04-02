@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "smart_menu",
+    "scheme": "smart-menu",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -23,6 +23,9 @@
         "UIBackgroundModes": [
           "remote-notification"
         ]
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -35,8 +38,10 @@
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
-      ]
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ],
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",
@@ -64,6 +69,9 @@
       },
       "router": {}
     },
-    "owner": "jftsantos"
+    "owner": "jftsantos",
+    "updates": {
+      "url": "https://u.expo.dev/3bebfd9b-7137-4927-99d8-2c6825aa745f"
+    }
   }
 }

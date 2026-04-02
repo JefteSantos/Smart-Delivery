@@ -1,4 +1,4 @@
-import { useCartStore, Product } from './cartStore';
+import { useCartStore, Product } from '../store/cartStore';
 
 // Produto mock para testes
 const burgerMock: Product = {
