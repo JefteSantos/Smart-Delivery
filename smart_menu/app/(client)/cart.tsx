@@ -72,9 +72,11 @@ export default function CartScreen() {
                 if (distanceKm > 2) {
                     const baseFee = settings.delivery_fee || 0;
                     const perKmFee = settings.delivery_fee_per_km || 0;
-                    // Cobra proporcionalmente pela distância extra que excedeu 2km
+                    // Calcula a distância excedente e aplica arredondamento matemático
+                    // (Ex: 2.11 vira 2, mas 2.6 vira 3)
                     const extraDistance = distanceKm - 2;
-                    dynamicFee = baseFee + (extraDistance * perKmFee);
+                    const roundedExtraDist = Math.round(extraDistance);
+                    dynamicFee = baseFee + (roundedExtraDist * perKmFee);
                 }
                 
                 setCalculatedDeliveryFee(dynamicFee > 0 ? dynamicFee : 0);
